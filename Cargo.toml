@@ -1,0 +1,12 @@
+[package]
+name = "aoc2024"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+members = [
+  "days/day1",
+]
+
+[dependencies]
+day1 = { path = "./days/day1" }
