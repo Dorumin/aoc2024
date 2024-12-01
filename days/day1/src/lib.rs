@@ -2,7 +2,7 @@ const INPUT: &str = include_str!("../../../inputs/day1.txt");
 
 struct Lines {
     left: Vec<i64>,
-    right: Vec<i64>
+    right: Vec<i64>,
 }
 
 impl Lines {
@@ -10,17 +10,18 @@ impl Lines {
         let pairs = input.lines().map(|line| {
             let mut split = line.split_whitespace();
             let left: i64 = split.next().expect("no lefty").parse().expect("lefty nan");
-            let right: i64 = split.next().expect("no righty").parse().expect("righty nan");
+            let right: i64 = split
+                .next()
+                .expect("no righty")
+                .parse()
+                .expect("righty nan");
 
             (left, right)
         });
 
         let (left, right) = pairs.unzip();
 
-        Self {
-            left,
-            right
-        }
+        Self { left, right }
     }
 
     fn sort(&mut self) {
@@ -45,9 +46,17 @@ pub fn part1() {
     let difference: i64 = lines.into_iter().map(|(a, b)| (a - b).abs()).sum();
 
     dbg!(difference);
-
 }
 
 pub fn part2() {
+    let lines = Lines::from_str(INPUT);
 
+    // Optimizing at this scale is pretty pointless
+    let similarities: i64 = lines
+        .left
+        .iter()
+        .map(|a| a * lines.right.iter().filter(|b| a == *b).count() as i64)
+        .sum();
+
+    dbg!(similarities);
 }

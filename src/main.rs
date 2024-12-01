@@ -2,7 +2,7 @@ fn dispatch(p1: fn(), p2: fn(), part: &str) {
     match part {
         "1" => p1(),
         "2" => p2(),
-        _ => panic!("There's only two parts")
+        _ => panic!("There's only two parts"),
     }
 }
 
@@ -14,7 +14,7 @@ fn main() {
     match its_a_date.as_ref() {
         "day1" => {
             dispatch(day1::part1, day1::part2, &parte);
-        },
-        _ => panic!("No day that matches")
+        }
+        _ => panic!("No day that matches"),
     }
 }
