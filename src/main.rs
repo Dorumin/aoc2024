@@ -15,6 +15,19 @@ fn main() {
         "day1" => {
             dispatch(day1::part1, day1::part2, &parte);
         }
+        "fetch" => {
+            let session =
+                std::fs::read_to_string("session.txt").expect("session.txt with session key");
+
+            let input = ureq::get(&format!("https://adventofcode.com/2024/day/{parte}/input"))
+                .set("Cookie", &format!("session={key}", key = session.trim()))
+                .call()
+                .unwrap()
+                .into_string()
+                .unwrap();
+
+            std::fs::write(format!("inputs/day{parte}.txt"), input).expect("write to file");
+        }
         _ => panic!("No day that matches"),
     }
 }

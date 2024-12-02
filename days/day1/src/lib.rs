@@ -10,11 +10,7 @@ impl Lines {
         let pairs = input.lines().map(|line| {
             let mut split = line.split_whitespace();
             let left: i64 = split.next().expect("no lefty").parse().expect("lefty nan");
-            let right: i64 = split
-                .next()
-                .expect("no righty")
-                .parse()
-                .expect("righty nan");
+            let right: i64 = split.next().expect("no righty").parse().expect("righty nan");
 
             (left, right)
         });

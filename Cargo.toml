@@ -10,3 +10,4 @@ members = [
 
 [dependencies]
 day1 = { path = "./days/day1" }
+ureq = "2.11.0"
