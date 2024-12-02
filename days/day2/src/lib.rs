@@ -4,6 +4,7 @@ struct Reports {
     lines: Vec<Line>,
 }
 
+#[derive(Clone)]
 struct Line {
     values: Vec<i64>,
 }
@@ -17,6 +18,10 @@ impl Reports {
 
     fn safe_line_count(&self) -> usize {
         self.lines.iter().filter(|line| line.is_safe()).count()
+    }
+
+    fn dampened_safe_line_count(&self) -> usize {
+        self.lines.iter().filter(|line| line.is_safe_dampened()).count()
     }
 }
 
@@ -42,6 +47,25 @@ impl Line {
     pub fn is_safe(&self) -> bool {
         (self.is_increasing() || self.is_decreasing()) && self.is_stable()
     }
+
+    pub fn is_safe_dampened(&self) -> bool {
+        // Hacky try-all-removes, since implementing a skip and branch would take longer
+        // than the runtime of this function anyway
+        if self.is_safe() {
+            return true;
+        }
+
+        for i in 0..self.values.len() {
+            let mut mutated = self.clone();
+            mutated.values.remove(i);
+
+            if mutated.is_safe() {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 pub fn part1() {
@@ -50,7 +74,11 @@ pub fn part1() {
     dbg!(safes);
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let safes = Reports::from_str(INPUT).dampened_safe_line_count();
+
+    dbg!(safes);
+}
 
 #[cfg(test)]
 mod tests {
