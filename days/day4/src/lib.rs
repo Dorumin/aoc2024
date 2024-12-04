@@ -15,6 +15,28 @@ impl Lettermap {
         self.chars[0].len()
     }
 
+    fn match_pattern(&self, pattern: &[&[fn(char) -> bool]]) -> usize {
+        let row_count = pattern.len();
+        let col_count = pattern[0].len();
+        let mut count = 0;
+
+        for row in 0..(self.chars.len() - row_count) {
+            for col in 0..(self.col_count() - col_count) {
+                let matched = pattern.iter().enumerate().all(|(i, pats)| {
+                    pats.iter()
+                        .enumerate()
+                        .all(|(j, pat)| pat(self.chars[row + i][col + j]))
+                });
+
+                if matched {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
+
     fn count_xmas(&self) -> usize {
         let mut count = 0;
 
@@ -115,6 +137,26 @@ impl Lettermap {
 
         count
     }
+
+    fn count_x_mas_cooler(&self) -> usize {
+        self.match_pattern(&[
+            &[|c| c == 'S', |_| true, |c| c == 'M'],
+            &[|_| true, |c| c == 'A', |_| true],
+            &[|c| c == 'S', |_| true, |c| c == 'M'],
+        ]) + self.match_pattern(&[
+            &[|c| c == 'M', |_| true, |c| c == 'M'],
+            &[|_| true, |c| c == 'A', |_| true],
+            &[|c| c == 'S', |_| true, |c| c == 'S'],
+        ]) + self.match_pattern(&[
+            &[|c| c == 'S', |_| true, |c| c == 'S'],
+            &[|_| true, |c| c == 'A', |_| true],
+            &[|c| c == 'M', |_| true, |c| c == 'M'],
+        ]) + self.match_pattern(&[
+            &[|c| c == 'M', |_| true, |c| c == 'S'],
+            &[|_| true, |c| c == 'A', |_| true],
+            &[|c| c == 'M', |_| true, |c| c == 'S'],
+        ])
+    }
 }
 
 pub fn part1() {
@@ -167,5 +209,23 @@ M.M.M.M.M.
         );
 
         assert_eq!(map.count_x_mas(), 9);
+    }
+
+    #[test]
+    fn ejemplo_dos_cooler() {
+        let map = Lettermap::from_str(
+            ".M.S......
+..A..MSMS.
+.M.S.MAA..
+..A.ASMSM.
+.M.S.M....
+..........
+S.S.S.S.S.
+.A.A.A.A..
+M.M.M.M.M.
+..........",
+        );
+
+        assert_eq!(map.count_x_mas_cooler(), 9);
     }
 }
