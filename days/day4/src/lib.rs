@@ -1,3 +1,7 @@
+use std::time::Instant;
+
+use regex::Regex;
+
 const INPUT: &str = include_str!("../../../inputs/day4.txt");
 
 struct Lettermap {
@@ -13,6 +17,27 @@ impl Lettermap {
 
     fn col_count(&self) -> usize {
         self.chars[0].len()
+    }
+
+    fn regex_2d(&self, regex: Regex, width: usize, height: usize) -> usize {
+        let mut count = 0;
+
+        for row in 0..(self.chars.len() - height) {
+            for col in 0..(self.col_count() - width) {
+                let iter = (0..height).flat_map(|i| {
+                    (0..width)
+                        .map(move |j| self.chars[row + i][col + j])
+                        .chain(std::iter::once('\n'))
+                });
+                let s = String::from_iter(iter);
+
+                if regex.is_match(&s) {
+                    count += 1;
+                }
+            }
+        }
+
+        count
     }
 
     fn match_pattern(&self, pattern: &[&[fn(char) -> bool]]) -> usize {
@@ -157,6 +182,12 @@ impl Lettermap {
             &[|c| c == 'M', |_| true, |c| c == 'S'],
         ])
     }
+
+    fn count_x_mas_regex(&self) -> usize {
+        let r = Regex::new("M.M\n.A.\nS.S|S.S\n.A.\nM.M|M.S\n.A.\nM.S|S.M\n.A.\nS.M").unwrap();
+
+        self.regex_2d(r, 3, 3)
+    }
 }
 
 pub fn part1() {
@@ -165,10 +196,25 @@ pub fn part1() {
     dbg!(map.count_xmas());
 }
 
+fn time<T>(label: &str, f: impl FnOnce() -> T) -> T {
+    let start = Instant::now();
+    let v = f();
+    let elapsed = start.elapsed();
+
+    eprintln!(
+        "{label} took {time}ms to execute (that's microseconds)",
+        time = elapsed.as_micros()
+    );
+
+    v
+}
+
 pub fn part2() {
     let map = Lettermap::from_str(INPUT);
 
-    dbg!(map.count_x_mas());
+    dbg!(time("x-mas", || map.count_x_mas()));
+    dbg!(time("cooler x-mas", || map.count_x_mas_cooler()));
+    dbg!(time("regex x-mas", || map.count_x_mas_regex()));
 }
 
 #[cfg(test)]
@@ -226,6 +272,24 @@ M.M.M.M.M.
 ..........",
         );
 
-        assert_eq!(map.count_x_mas_cooler(), 9);
+        assert_eq!(map.count_x_mas_cooler(), map.count_x_mas());
+    }
+
+    #[test]
+    fn ejemplo_dos_regex() {
+        let map = Lettermap::from_str(
+            ".M.S......
+..A..MSMS.
+.M.S.MAA..
+..A.ASMSM.
+.M.S.M....
+..........
+S.S.S.S.S.
+.A.A.A.A..
+M.M.M.M.M.
+..........",
+        );
+
+        assert_eq!(map.count_x_mas_regex(), map.count_x_mas());
     }
 }
