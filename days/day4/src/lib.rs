@@ -22,8 +22,8 @@ impl Lettermap {
     fn regex_2d(&self, regex: Regex, width: usize, height: usize) -> usize {
         let mut count = 0;
 
-        for row in 0..(self.chars.len() - height) {
-            for col in 0..(self.col_count() - width) {
+        for row in 0..(self.chars.len() - height + 1) {
+            for col in 0..(self.col_count() - width + 1) {
                 let iter = (0..height).flat_map(|i| {
                     (0..width)
                         .map(move |j| self.chars[row + i][col + j])
@@ -40,13 +40,49 @@ impl Lettermap {
         count
     }
 
+    fn regex_2d_unsafe(&self, regex: Regex, width: usize, height: usize) -> usize {
+        if width == 0 || height == 0 {
+            return 0;
+        }
+
+        let mut count = 0;
+
+        let mut scratch = "_".repeat((width + 1) * height);
+
+        for row in 0..(self.chars.len() - height + 1) {
+            for col in 0..(self.col_count() - width + 1) {
+                unsafe {
+                    let slice = scratch.as_bytes_mut();
+                    let mut offset = 0;
+
+                    for i in 0..height {
+                        for j in 0..width {
+                            let byte = self.chars[row + i][col + j] as u8;
+                            slice[offset] = byte;
+                            offset += 1;
+                        }
+
+                        slice[offset] = b'\n';
+                        offset += 1;
+                    }
+                }
+
+                if regex.is_match(&scratch) {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
+
     fn match_pattern(&self, pattern: &[&[fn(char) -> bool]]) -> usize {
         let row_count = pattern.len();
         let col_count = pattern[0].len();
         let mut count = 0;
 
-        for row in 0..(self.chars.len() - row_count) {
-            for col in 0..(self.col_count() - col_count) {
+        for row in 0..(self.chars.len() - row_count + 1) {
+            for col in 0..(self.col_count() - col_count + 1) {
                 let matched = pattern.iter().enumerate().all(|(i, pats)| {
                     pats.iter()
                         .enumerate()
@@ -188,6 +224,13 @@ impl Lettermap {
 
         self.regex_2d(r, 3, 3)
     }
+
+    fn count_x_mas_regex_unsafe(&self) -> usize {
+        let r = Regex::new("^(-u)(?:M.M\n.A.\nS.S|S.S\n.A.\nM.M|M.S\n.A.\nM.S|S.M\n.A.\nS.M)\n$")
+            .unwrap();
+
+        self.regex_2d_unsafe(r, 3, 3)
+    }
 }
 
 pub fn part1() {
@@ -215,6 +258,7 @@ pub fn part2() {
     dbg!(time("x-mas", || map.count_x_mas()));
     dbg!(time("cooler x-mas", || map.count_x_mas_cooler()));
     dbg!(time("regex x-mas", || map.count_x_mas_regex()));
+    dbg!(time("unsafe regex x-mas", || map.count_x_mas_regex_unsafe()));
 }
 
 #[cfg(test)]
