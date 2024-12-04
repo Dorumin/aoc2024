@@ -95,6 +95,26 @@ impl Lettermap {
 
         count
     }
+
+    fn count_x_mas(&self) -> usize {
+        let mut count = 0;
+
+        let c = &self.chars;
+        for row in 0..(self.chars.len() - 2) {
+            for col in 0..(self.col_count() - 2) {
+                if c[row + 1][col + 1] == 'A'
+                    && ((c[row][col] == 'M' && c[row + 2][col + 2] == 'S')
+                        || (c[row][col] == 'S' && c[row + 2][col + 2] == 'M'))
+                    && ((c[row][col + 2] == 'M' && c[row + 2][col] == 'S')
+                        || (c[row][col + 2] == 'S' && c[row + 2][col] == 'M'))
+                {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
 }
 
 pub fn part1() {
@@ -103,14 +123,18 @@ pub fn part1() {
     dbg!(map.count_xmas());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let map = Lettermap::from_str(INPUT);
+
+    dbg!(map.count_x_mas());
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
+    fn ejemplo_uno() {
         let map = Lettermap::from_str(
             "....XXMAS.
 .SAMXMS...
@@ -125,5 +149,23 @@ S.S.S.S.SS
         );
 
         assert_eq!(map.count_xmas(), 18);
+    }
+
+    #[test]
+    fn ejemplo_dos() {
+        let map = Lettermap::from_str(
+            ".M.S......
+..A..MSMS.
+.M.S.MAA..
+..A.ASMSM.
+.M.S.M....
+..........
+S.S.S.S.S.
+.A.A.A.A..
+M.M.M.M.M.
+..........",
+        );
+
+        assert_eq!(map.count_x_mas(), 9);
     }
 }
