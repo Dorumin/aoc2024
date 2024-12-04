@@ -6,12 +6,25 @@ const INPUT: &str = include_str!("../../../inputs/day4.txt");
 
 struct Lettermap {
     chars: Vec<Vec<char>>,
+    bookkeeping_as: Vec<(usize, usize)>,
 }
 
 impl Lettermap {
     fn from_str(s: &str) -> Self {
+        let chars: Vec<Vec<_>> = s.lines().map(|line| line.chars().collect()).collect();
+        let bookkeeping_as = chars
+            .iter()
+            .enumerate()
+            .flat_map(|(y, row)| {
+                row.iter()
+                    .enumerate()
+                    .flat_map(move |(x, c)| if *c == 'A' { Some((y, x)) } else { None })
+            })
+            .collect();
+
         Self {
-            chars: s.lines().map(|line| line.chars().collect()).collect(),
+            chars,
+            bookkeeping_as,
         }
     }
 
@@ -40,7 +53,7 @@ impl Lettermap {
         count
     }
 
-    fn regex_2d_unsafe(&self, regex: Regex, width: usize, height: usize) -> usize {
+    fn regex_2d_unsafe(&self, regex: regex::bytes::Regex, width: usize, height: usize) -> usize {
         if width == 0 || height == 0 {
             return 0;
         }
@@ -67,7 +80,7 @@ impl Lettermap {
                     }
                 }
 
-                if regex.is_match(&scratch) {
+                if regex.is_match(scratch.as_bytes()) {
                     count += 1;
                 }
             }
@@ -226,10 +239,46 @@ impl Lettermap {
     }
 
     fn count_x_mas_regex_unsafe(&self) -> usize {
-        let r = Regex::new("^(-u)(?:M.M\n.A.\nS.S|S.S\n.A.\nM.M|M.S\n.A.\nM.S|S.M\n.A.\nS.M)\n$")
-            .unwrap();
+        let r = regex::bytes::Regex::new(
+            r"(?-u)^(?:M.M\n.A.\nS.S|S.S\n.A.\nM.M|M.S\n.A.\nM.S|S.M\n.A.\nS.M)\n$",
+        )
+        .unwrap();
 
         self.regex_2d_unsafe(r, 3, 3)
+    }
+
+    fn count_x_mas_puxscan(&self) -> usize {
+        self.bookkeeping_as
+            .iter()
+            .map(|(y, x)| (*y, *x))
+            .filter(|&(y, x)| {
+                if !(x >= 1 && x < self.col_count() - 1) {
+                    return false;
+                }
+
+                if !(y >= 1 && y < self.chars.len() - 1) {
+                    return false;
+                }
+
+                if self.chars[y][x] != 'A' {
+                    return false;
+                }
+
+                if !(self.chars[y - 1][x - 1] == 'M' && self.chars[y + 1][x + 1] == 'S'
+                    || self.chars[y - 1][x - 1] == 'S' && self.chars[y + 1][x + 1] == 'M')
+                {
+                    return false;
+                }
+
+                if !(self.chars[y + 1][x - 1] == 'M' && self.chars[y - 1][x + 1] == 'S'
+                    || self.chars[y + 1][x - 1] == 'S' && self.chars[y - 1][x + 1] == 'M')
+                {
+                    return false;
+                }
+
+                true
+            })
+            .count()
     }
 }
 
@@ -259,6 +308,7 @@ pub fn part2() {
     dbg!(time("cooler x-mas", || map.count_x_mas_cooler()));
     dbg!(time("regex x-mas", || map.count_x_mas_regex()));
     dbg!(time("unsafe regex x-mas", || map.count_x_mas_regex_unsafe()));
+    dbg!(time("puxscan x-mas", || map.count_x_mas_puxscan()));
 }
 
 #[cfg(test)]
@@ -302,38 +352,30 @@ M.M.M.M.M.
     }
 
     #[test]
-    fn ejemplo_dos_cooler() {
-        let map = Lettermap::from_str(
-            ".M.S......
-..A..MSMS.
-.M.S.MAA..
-..A.ASMSM.
-.M.S.M....
-..........
-S.S.S.S.S.
-.A.A.A.A..
-M.M.M.M.M.
-..........",
-        );
+    fn cooler() {
+        let map = Lettermap::from_str(INPUT);
 
-        assert_eq!(map.count_x_mas_cooler(), map.count_x_mas());
+        assert_eq!(map.count_x_mas(), map.count_x_mas_cooler());
     }
 
     #[test]
-    fn ejemplo_dos_regex() {
-        let map = Lettermap::from_str(
-            ".M.S......
-..A..MSMS.
-.M.S.MAA..
-..A.ASMSM.
-.M.S.M....
-..........
-S.S.S.S.S.
-.A.A.A.A..
-M.M.M.M.M.
-..........",
-        );
+    fn regex() {
+        let map = Lettermap::from_str(INPUT);
 
-        assert_eq!(map.count_x_mas_regex(), map.count_x_mas());
+        assert_eq!(map.count_x_mas(), map.count_x_mas_regex());
+    }
+
+    #[test]
+    fn unsafe_regex() {
+        let map = Lettermap::from_str(INPUT);
+
+        assert_eq!(map.count_x_mas(), map.count_x_mas_regex_unsafe());
+    }
+
+    #[test]
+    fn lots_of_puxlove() {
+        let map = Lettermap::from_str(INPUT);
+
+        assert_eq!(map.count_x_mas(), map.count_x_mas_puxscan());
     }
 }
