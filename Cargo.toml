@@ -4,11 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["days/day1", "days/day2", "days/day3", "days/day4"]
+members = ["days/day1", "days/day2", "days/day3", "days/day4", "days/day5"]
 
 [dependencies]
 day1 = { path = "./days/day1" }
 day2 = { path = "./days/day2" }
 day3 = { path = "./days/day3" }
 day4 = { path = "./days/day4" }
+day5 = { path = "./days/day5" }
 ureq = "2.11.0"

@@ -9,6 +9,8 @@ struct Lettermap {
     bookkeeping_as: Vec<(usize, usize)>,
 }
 
+type ShutupClippy<'a> = &'a [&'a [fn(char) -> bool]];
+
 impl Lettermap {
     fn from_str(s: &str) -> Self {
         let chars: Vec<Vec<_>> = s.lines().map(|line| line.chars().collect()).collect();
@@ -89,7 +91,7 @@ impl Lettermap {
         count
     }
 
-    fn match_pattern(&self, pattern: &[&[fn(char) -> bool]]) -> usize {
+    fn match_pattern(&self, pattern: ShutupClippy) -> usize {
         let row_count = pattern.len();
         let col_count = pattern[0].len();
         let mut count = 0;

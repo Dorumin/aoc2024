@@ -25,6 +25,7 @@ dependencies = [
  "day2",
  "day3",
  "day4",
+ "day5",
  "ureq",
 ]
 
@@ -79,6 +80,10 @@ version = "0.1.0"
 dependencies = [
  "regex",
 ]
+
+[[package]]
+name = "day5"
+version = "0.1.0"
 
 [[package]]
 name = "displaydoc"
