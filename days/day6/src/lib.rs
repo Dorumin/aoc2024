@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 const INPUT: &str = include_str!("../../../inputs/day6.txt");
 
 struct Map {
@@ -6,7 +8,7 @@ struct Map {
     cells: Vec<Cell>,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 enum Cell {
     FreeSpace,
     Barrier,
@@ -14,6 +16,7 @@ enum Cell {
     Walked,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 enum Direction {
     Up,
     Right,
@@ -80,14 +83,14 @@ impl Map {
     }
 
     fn index(&self, x: usize, y: usize) -> Cell {
-        self.cells[x + y * self.width]
+        self.cells[x + y * self.width].clone()
     }
 
     fn index_mut(&mut self, x: usize, y: usize) -> &mut Cell {
         &mut self.cells[x + y * self.width]
     }
 
-    fn next(&self, pos: (usize, usize), direction: &mut Direction) -> Option<(usize, usize)> {
+    fn next_nobarrier(&self, pos: (usize, usize), direction: &Direction) -> Option<(usize, usize)> {
         let next = match direction {
             Direction::Up => (pos.0, pos.1.checked_sub(1)?),
             Direction::Right => (pos.0.checked_add(1)?, pos.1),
@@ -99,13 +102,20 @@ impl Map {
             return None;
         }
 
-        if self.index(next.0, next.1) == Cell::Barrier {
-            *direction = direction.turn_cockwise();
+        Some(next)
+    }
 
-            // stay put
-            Some(pos)
+    fn next(
+        &self,
+        pos: (usize, usize),
+        direction: &Direction,
+    ) -> Option<((usize, usize), Direction)> {
+        let next = self.next_nobarrier(pos, direction)?;
+
+        if self.index(next.0, next.1) == Cell::Barrier {
+            Some((pos, direction.turn_cockwise()))
         } else {
-            Some(next)
+            Some((next, direction.clone()))
         }
     }
 
@@ -113,8 +123,9 @@ impl Map {
         let mut direction = Direction::Up;
         let mut pos = self.where_me();
 
-        while let Some(next) = self.next(pos, &mut direction) {
+        while let Some((next, dir)) = self.next(pos, &direction) {
             *self.index_mut(pos.0, pos.1) = Cell::Walked;
+            direction = dir;
             pos = next;
         }
 
@@ -122,7 +133,88 @@ impl Map {
     }
 
     fn walked_cells(&self) -> usize {
-        self.cells.iter().filter(|&&c| c == Cell::Walked).count()
+        self.cells.iter().filter(|&c| *c == Cell::Walked).count()
+    }
+
+    fn walk_twisting(&mut self) -> usize {
+        let start_position = self.where_me();
+        let mut direction = Direction::Up;
+        let mut pos = start_position;
+        let mut positions = vec![];
+
+        while let Some((next, dir)) = self.next(pos, &direction) {
+            *self.index_mut(pos.0, pos.1) = Cell::Walked;
+            positions.push((pos, direction.clone()));
+
+            direction = dir;
+            pos = next;
+        }
+
+        *self.index_mut(pos.0, pos.1) = Cell::Walked;
+        positions.push((pos, direction.clone()));
+
+        // dbg!(positions.len());
+
+        let mut looped = HashSet::new();
+
+        for (start_pos, start_dir) in positions.iter() {
+            // eprintln!("{start_dir:?} {start_pos:?}");
+
+            let mut local_lookup = HashSet::new();
+            let mut pos = start_position;
+            let mut direction = Direction::Up;
+            let Some(barry) = self.next_nobarrier(*start_pos, start_dir) else {
+                // println!("end of the road");
+                continue;
+            };
+
+            if looped.contains(&barry) {
+                continue;
+            }
+
+            if barry == start_position {
+                // println!("space anomaly");
+                continue;
+            }
+
+            let old = self.index(barry.0, barry.1);
+
+            if old == Cell::Barrier {
+                // println!("no dupes");
+                continue;
+            }
+
+            // eprintln!("{barry:?}");
+
+            *self.index_mut(barry.0, barry.1) = Cell::Barrier;
+
+            // Our first movement will be blocked by the barrier
+            // assert_eq!(
+            //     (pos, direction.turn_cockwise()),
+            //     self.next(pos, &direction).unwrap()
+            // );
+
+            // walk the walk with the new barrier and new state
+            while let Some((next, dir)) = self.next(pos, &direction) {
+                if local_lookup.contains(&(next, dir.clone())) {
+                    // println!("found loopy banoopy at {dir:?} {next:?}, barrier at {barry:?}");
+
+                    looped.insert(barry);
+
+                    break;
+                } else {
+                    // println!("move {pos:?} to {next:?}");
+                    local_lookup.insert((next, dir.clone()));
+
+                    direction = dir;
+                    pos = next;
+                }
+            }
+
+            *self.index_mut(barry.0, barry.1) = old;
+        }
+
+        looped.len()
     }
 }
 
@@ -134,7 +226,11 @@ pub fn part1() {
     dbg!(map.walked_cells());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let mut map = Map::from_str(INPUT);
+
+    dbg!(map.walk_twisting());
+}
 
 #[cfg(test)]
 mod tests {
@@ -161,5 +257,23 @@ mod tests {
         map.walk();
 
         assert_eq!(map.walked_cells(), 41);
+    }
+
+    #[test]
+    fn example_two() {
+        let mut map = Map::from_str(
+            "....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#...",
+        );
+
+        assert_eq!(map.walk_twisting(), 6);
     }
 }
