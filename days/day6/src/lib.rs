@@ -1,0 +1,165 @@
+const INPUT: &str = include_str!("../../../inputs/day6.txt");
+
+struct Map {
+    width: usize,
+    height: usize,
+    cells: Vec<Cell>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum Cell {
+    FreeSpace,
+    Barrier,
+    Playa,
+    Walked,
+}
+
+enum Direction {
+    Up,
+    Right,
+    Down,
+    Left,
+}
+
+impl Direction {
+    fn turn_cockwise(&self) -> Self {
+        match self {
+            Direction::Up => Direction::Right,
+            Direction::Right => Direction::Down,
+            Direction::Down => Direction::Left,
+            Direction::Left => Direction::Up,
+        }
+    }
+}
+
+impl Cell {
+    fn from_char(c: char) -> Self {
+        match c {
+            '.' => Self::FreeSpace,
+            '#' => Self::Barrier,
+            '^' => Self::Playa,
+            _ => unreachable!("pls no"),
+        }
+    }
+}
+
+impl Map {
+    fn from_str(input: &str) -> Self {
+        let mut cells = vec![];
+        let mut width = 0;
+        let height = input
+            .lines()
+            .map(|line| {
+                width = line.len();
+
+                line.chars().for_each(|c| {
+                    if c.is_ascii() {
+                        cells.push(Cell::from_char(c));
+                    } else {
+                        panic!("take yo utf-8 back to python we ascii bytes in this muthafucka")
+                    }
+                });
+            })
+            .count();
+
+        Self {
+            width,
+            height,
+            cells,
+        }
+    }
+
+    fn coords(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
+        (0..self.width).flat_map(|x| (0..self.height).map(move |y| (x, y)))
+    }
+
+    fn where_me(&self) -> (usize, usize) {
+        self.coords()
+            .find(|(x, y)| self.index(*x, *y) == Cell::Playa)
+            .unwrap()
+    }
+
+    fn index(&self, x: usize, y: usize) -> Cell {
+        self.cells[x + y * self.width]
+    }
+
+    fn index_mut(&mut self, x: usize, y: usize) -> &mut Cell {
+        &mut self.cells[x + y * self.width]
+    }
+
+    fn next(&self, pos: (usize, usize), direction: &mut Direction) -> Option<(usize, usize)> {
+        let next = match direction {
+            Direction::Up => (pos.0, pos.1.checked_sub(1)?),
+            Direction::Right => (pos.0.checked_add(1)?, pos.1),
+            Direction::Down => (pos.0, pos.1.checked_add(1)?),
+            Direction::Left => (pos.0.checked_sub(1)?, pos.1),
+        };
+
+        if next.0 >= self.width || next.1 >= self.height {
+            return None;
+        }
+
+        if self.index(next.0, next.1) == Cell::Barrier {
+            *direction = direction.turn_cockwise();
+
+            // stay put
+            Some(pos)
+        } else {
+            Some(next)
+        }
+    }
+
+    fn walk(&mut self) {
+        let mut direction = Direction::Up;
+        let mut pos = self.where_me();
+
+        while let Some(next) = self.next(pos, &mut direction) {
+            *self.index_mut(pos.0, pos.1) = Cell::Walked;
+            pos = next;
+        }
+
+        *self.index_mut(pos.0, pos.1) = Cell::Walked;
+    }
+
+    fn walked_cells(&self) -> usize {
+        self.cells.iter().filter(|&&c| c == Cell::Walked).count()
+    }
+}
+
+pub fn part1() {
+    let mut map = Map::from_str(INPUT);
+
+    map.walk();
+
+    dbg!(map.walked_cells());
+}
+
+pub fn part2() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn example_one() {
+        let mut map = Map::from_str(
+            "....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#...",
+        );
+
+        assert_eq!(map.width, 10);
+        assert_eq!(map.height, 10);
+
+        map.walk();
+
+        assert_eq!(map.walked_cells(), 41);
+    }
+}

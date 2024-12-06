@@ -8,21 +8,18 @@ struct Update {
 }
 
 struct OrderingRules {
-    map: HashMap<i64, Vec<i64>>,
     reverse: HashMap<i64, Vec<i64>>,
 }
 
 impl OrderingRules {
     fn new(pairs: impl Iterator<Item = (i64, i64)>) -> Self {
-        let mut map: HashMap<i64, Vec<i64>> = HashMap::new();
         let mut reverse: HashMap<i64, Vec<i64>> = HashMap::new();
 
         for (x, y) in pairs {
-            map.entry(x).or_default().push(y);
             reverse.entry(y).or_default().push(x);
         }
 
-        Self { map, reverse }
+        Self { reverse }
     }
 
     fn is_ok(&self, line: &[i64]) -> bool {
@@ -51,16 +48,7 @@ impl OrderingRules {
                     .map(|(i, _)| (index, i))
             });
 
-            if let Some((mut x, mut y)) = switch {
-                // eprintln!("{} {}: {} {}\n{:?}", x, y, line[x], line[y], &line);
-
-                // std::thread::sleep(std::time::Duration::from_secs(1));
-
-                if x > y {
-                    // std::mem::swap(&mut x, &mut y);
-                    panic!();
-                }
-
+            if let Some((x, y)) = switch {
                 line[x..(y + 1)].rotate_left(1);
             } else {
                 break;
