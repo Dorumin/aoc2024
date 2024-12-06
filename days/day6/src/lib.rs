@@ -25,6 +25,15 @@ enum Direction {
 }
 
 impl Direction {
+    fn flag(&self) -> u8 {
+        match self {
+            Direction::Up => 1,
+            Direction::Right => 2,
+            Direction::Down => 4,
+            Direction::Left => 8,
+        }
+    }
+
     fn turn_cockwise(&self) -> Self {
         match self {
             Direction::Up => Direction::Right,
@@ -143,34 +152,29 @@ impl Map {
         let mut positions = vec![];
 
         while let Some((next, dir)) = self.next(pos, &direction) {
-            *self.index_mut(pos.0, pos.1) = Cell::Walked;
-            positions.push((pos, direction.clone()));
+            positions.push(pos);
 
             direction = dir;
             pos = next;
         }
 
-        *self.index_mut(pos.0, pos.1) = Cell::Walked;
-        positions.push((pos, direction.clone()));
+        positions.push(pos);
 
-        // dbg!(positions.len());
+        let mut looped = 0;
+        let mut tried = HashSet::new();
 
-        let mut looped = HashSet::new();
-
-        for (start_pos, start_dir) in positions.iter() {
+        for barry in positions.into_iter() {
             // eprintln!("{start_dir:?} {start_pos:?}");
 
-            let mut local_lookup = HashSet::new();
+            let mut local_hookup = vec![0u8; self.cells.len()];
             let mut pos = start_position;
             let mut direction = Direction::Up;
-            let Some(barry) = self.next_nobarrier(*start_pos, start_dir) else {
-                // println!("end of the road");
-                continue;
-            };
 
-            if looped.contains(&barry) {
+            if tried.contains(&barry) {
                 continue;
             }
+
+            tried.insert(barry);
 
             if barry == start_position {
                 // println!("space anomaly");
@@ -196,15 +200,18 @@ impl Map {
 
             // walk the walk with the new barrier and new state
             while let Some((next, dir)) = self.next(pos, &direction) {
-                if local_lookup.contains(&(next, dir.clone())) {
+                let flog = dir.flag();
+                let ind = next.0 + next.1 * self.width;
+
+                if local_hookup[ind] & flog == flog {
                     // println!("found loopy banoopy at {dir:?} {next:?}, barrier at {barry:?}");
 
-                    looped.insert(barry);
+                    looped += 1;
 
                     break;
                 } else {
                     // println!("move {pos:?} to {next:?}");
-                    local_lookup.insert((next, dir.clone()));
+                    local_hookup[ind] |= dir.flag();
 
                     direction = dir;
                     pos = next;
@@ -214,7 +221,7 @@ impl Map {
             *self.index_mut(barry.0, barry.1) = old;
         }
 
-        looped.len()
+        looped
     }
 }
 
