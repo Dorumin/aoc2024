@@ -90,6 +90,43 @@ impl City {
             }
         }
     }
+
+    fn fill_resonances_repeating(&mut self) {
+        let mut reverse = HashMap::new();
+        for (cell, antenna) in self.signalis.iter() {
+            reverse.entry(antenna).or_insert_with(HashSet::new).insert(*cell);
+        }
+
+        for (antenna, cells) in reverse.into_iter() {
+            for cell in cells.iter() {
+                'cell_loopsie_daisies: for other_cell in cells.iter().filter(|&c| c != cell) {
+                    let icell = (cell.0 as i64, cell.1 as i64);
+                    let iother_cell = (other_cell.0 as i64, other_cell.1 as i64);
+
+                    let diff = (icell.0 - iother_cell.0, icell.1 - iother_cell.1);
+                    let mut end = icell;
+
+                    loop {
+                        if end.0 < 0
+                            || end.0 >= self.width as i64
+                            || end.1 < 0
+                            || end.1 >= self.height as i64
+                        {
+                            // out of bounds
+                            continue 'cell_loopsie_daisies;
+                        }
+
+                        let uend = (end.0 as usize, end.1 as usize);
+
+                        self.resonance.entry(uend).or_default().insert(antenna.clone());
+
+                        // Perform the shift at the end of the loop to mark the antenna as resonant
+                        end = (end.0 + diff.0, end.1 + diff.1);
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn part1() {
@@ -99,7 +136,12 @@ pub fn part1() {
     dbg!(map.resonance.len());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let mut map = City::from_str(INPUT);
+    map.fill_resonances_repeating();
+
+    dbg!(map.resonance.len());
+}
 
 #[cfg(test)]
 mod tests {
@@ -125,5 +167,27 @@ mod tests {
         city.fill_resonances();
 
         assert_eq!(city.resonance.len(), 14);
+    }
+
+    #[test]
+    fn example_two() {
+        let mut city = City::from_str(
+            "............
+........0...
+.....0......
+.......0....
+....0.......
+......A.....
+............
+............
+........A...
+.........A..
+............
+............",
+        );
+
+        city.fill_resonances_repeating();
+
+        assert_eq!(city.resonance.len(), 34);
     }
 }
