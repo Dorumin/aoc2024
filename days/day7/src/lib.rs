@@ -13,6 +13,7 @@ struct Equation {
 enum Operators {
     Add,
     Mul,
+    Concat,
 }
 
 impl Operators {
@@ -20,6 +21,15 @@ impl Operators {
         match self {
             Operators::Add => Some(Operators::Mul),
             Operators::Mul => None,
+            _ => unreachable!(),
+        }
+    }
+
+    fn next_concat(&self) -> Option<Operators> {
+        match self {
+            Operators::Add => Some(Operators::Mul),
+            Operators::Mul => Some(Operators::Concat),
+            Operators::Concat => None,
         }
     }
 }
@@ -37,6 +47,13 @@ impl Bridge {
             .filter(|e| e.is_solvable())
             .fold(0, |sum, eq| sum + eq.ideal)
     }
+
+    fn solvable_concat(&self) -> i64 {
+        self.equations
+            .iter()
+            .filter(|e| e.is_solvable_concat())
+            .fold(0, |sum, eq| sum + eq.ideal)
+    }
 }
 
 impl Equation {
@@ -48,11 +65,17 @@ impl Equation {
         Self { ideal, atoms }
     }
 
-    fn try_reduce_ops(ops: &mut [Operators]) -> bool {
+    fn try_reduce_ops(ops: &mut [Operators], concat: bool) -> bool {
         let mut reduced = None;
 
         for i in (0..ops.len()).rev() {
-            if let Some(new) = ops[i].next() {
+            let next = if concat {
+                ops[i].next_concat()
+            } else {
+                ops[i].next()
+            };
+
+            if let Some(new) = next {
                 reduced = Some(i);
                 ops[i] = new;
                 break;
@@ -81,13 +104,47 @@ impl Equation {
                 .for_each(|(index, atom)| match ops[index] {
                     Operators::Add => start += atom,
                     Operators::Mul => start *= atom,
+                    _ => unreachable!(),
                 });
 
             if start == self.ideal {
                 return true;
             }
 
-            if !Equation::try_reduce_ops(&mut ops) {
+            if !Equation::try_reduce_ops(&mut ops, false) {
+                break;
+            }
+        }
+
+        false
+    }
+
+    fn is_solvable_concat(&self) -> bool {
+        assert!(self.atoms.len() > 1);
+
+        let mut ops = vec![Operators::Add; self.atoms.len() - 1];
+
+        loop {
+            let mut start = self.atoms[0];
+            self.atoms
+                .iter()
+                .skip(1)
+                .enumerate()
+                .for_each(|(index, atom)| match ops[index] {
+                    Operators::Add => start += atom,
+                    Operators::Mul => start *= atom,
+                    Operators::Concat => {
+                        let mut long = start.to_string();
+                        long.push_str(&atom.to_string());
+                        start = long.parse().unwrap();
+                    }
+                });
+
+            if start == self.ideal {
+                return true;
+            }
+
+            if !Equation::try_reduce_ops(&mut ops, true) {
                 break;
             }
         }
@@ -102,7 +159,11 @@ pub fn part1() {
     dbg!(bridge.solvable_sum());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let bridge = Bridge::from_str(INPUT);
+
+    dbg!(bridge.solvable_concat());
+}
 
 #[cfg(test)]
 mod tests {
