@@ -11,13 +11,15 @@ members = [
     "days/day4",
     "days/day5",
     "days/day6",
+    "days/day7",
 ]
 
 [dependencies]
+ureq = "2.11.0"
 day1 = { path = "./days/day1" }
 day2 = { path = "./days/day2" }
 day3 = { path = "./days/day3" }
 day4 = { path = "./days/day4" }
 day5 = { path = "./days/day5" }
 day6 = { path = "./days/day6" }
-ureq = "2.11.0"
+day7 = { path = "./days/day7" }

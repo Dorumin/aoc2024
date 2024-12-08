@@ -18,6 +18,7 @@ fn main() {
         "day4" => dispatch(day4::part1, day4::part2, &parte),
         "day5" => dispatch(day5::part1, day5::part2, &parte),
         "day6" => dispatch(day6::part1, day6::part2, &parte),
+        "day7" => dispatch(day7::part1, day7::part2, &parte),
         "fetch" => {
             let session =
                 std::fs::read_to_string("session.txt").expect("session.txt with session key");
@@ -30,6 +31,18 @@ fn main() {
                 .unwrap();
 
             std::fs::write(format!("inputs/day{parte}.txt"), input).expect("write to file");
+
+            std::fs::create_dir_all(format!("days/day{parte}/src")).unwrap();
+
+            let code = std::fs::read_to_string("days/starter/src/lib.rs")
+                .unwrap()
+                .replace("dayN", &format!("day{parte}"));
+            std::fs::write(format!("days/day{parte}/src/lib.rs"), code).unwrap();
+
+            let manifest = std::fs::read_to_string("days/starter/Cargo.toml")
+                .unwrap()
+                .replace("dayN", &format!("day{parte}"));
+            std::fs::write(format!("days/day{parte}/Cargo.toml"), manifest).unwrap();
         }
         _ => panic!("No day that matches"),
     }

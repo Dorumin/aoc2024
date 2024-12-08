@@ -34,7 +34,7 @@ impl Direction {
         }
     }
 
-    fn turn_cockwise(&self) -> Self {
+    fn turn_cockwise(self) -> Self {
         match self {
             Direction::Up => Direction::Right,
             Direction::Right => Direction::Down,
@@ -99,7 +99,7 @@ impl Map {
         &mut self.cells[x + y * self.width]
     }
 
-    fn next_nobarrier(&self, pos: (usize, usize), direction: &Direction) -> Option<(usize, usize)> {
+    fn next_nobarrier(&self, pos: (usize, usize), direction: Direction) -> Option<(usize, usize)> {
         let next = match direction {
             Direction::Up => (pos.0, pos.1.checked_sub(1)?),
             Direction::Right => (pos.0.checked_add(1)?, pos.1),
@@ -117,14 +117,14 @@ impl Map {
     fn next(
         &self,
         pos: (usize, usize),
-        direction: &Direction,
+        direction: Direction,
     ) -> Option<((usize, usize), Direction)> {
-        let next = self.next_nobarrier(pos, direction)?;
+        let next = self.next_nobarrier(pos, direction.clone())?;
 
         if self.index(next.0, next.1) == Cell::Barrier {
             Some((pos, direction.turn_cockwise()))
         } else {
-            Some((next, direction.clone()))
+            Some((next, direction))
         }
     }
 
@@ -132,7 +132,7 @@ impl Map {
         let mut direction = Direction::Up;
         let mut pos = self.where_me();
 
-        while let Some((next, dir)) = self.next(pos, &direction) {
+        while let Some((next, dir)) = self.next(pos, direction) {
             *self.index_mut(pos.0, pos.1) = Cell::Walked;
             direction = dir;
             pos = next;
@@ -151,7 +151,7 @@ impl Map {
         let mut pos = start_position;
         let mut positions = vec![];
 
-        while let Some((next, dir)) = self.next(pos, &direction) {
+        while let Some((next, dir)) = self.next(pos, direction) {
             positions.push(pos);
 
             direction = dir;
@@ -199,7 +199,7 @@ impl Map {
             // );
 
             // walk the walk with the new barrier and new state
-            while let Some((next, dir)) = self.next(pos, &direction) {
+            while let Some((next, dir)) = self.next(pos, direction) {
                 let flog = dir.flag();
                 let ind = next.0 + next.1 * self.width;
 
