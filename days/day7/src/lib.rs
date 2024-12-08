@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 const INPUT: &str = include_str!("../../../inputs/day7.txt");
 
 struct Bridge {
@@ -125,6 +127,8 @@ impl Equation {
         let mut ops = vec![Operators::Add; self.atoms.len() - 1];
 
         loop {
+            let mut scratch = String::new();
+
             let mut start = self.atoms[0];
             self.atoms
                 .iter()
@@ -134,9 +138,12 @@ impl Equation {
                     Operators::Add => start += atom,
                     Operators::Mul => start *= atom,
                     Operators::Concat => {
-                        let mut long = start.to_string();
-                        long.push_str(&atom.to_string());
-                        start = long.parse().unwrap();
+                        scratch.clear();
+
+                        write!(&mut scratch, "{}", start).unwrap();
+                        write!(&mut scratch, "{}", atom).unwrap();
+
+                        start = scratch.parse().unwrap();
                     }
                 });
 
