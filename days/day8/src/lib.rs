@@ -75,9 +75,9 @@ impl City {
                     let end = (icell.0 + diff.0, icell.1 + diff.1);
 
                     if end.0 < 0
-                        || end.0 > self.width as i64
+                        || end.0 >= self.width as i64
                         || end.1 < 0
-                        || end.1 > self.height as i64
+                        || end.1 >= self.height as i64
                     {
                         // out of bounds
                         continue;
