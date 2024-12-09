@@ -5,10 +5,19 @@ struct Disk {
     sectors: Vec<Sector>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Sector {
     Empty { size: usize },
     File { size: usize, id: usize },
+}
+
+impl Sector {
+    fn size(&self) -> usize {
+        match self {
+            Sector::Empty { size } => *size,
+            Sector::File { size, .. } => *size,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -105,6 +114,87 @@ impl Disk {
 
         checksum
     }
+
+    fn move_files_checksum(&mut self) -> usize {
+        let sectors = &mut self.sectors;
+        let mut end = sectors.len() - 1;
+
+        'stop_the_world: loop {
+            let mut start = 0;
+
+            while let Sector::Empty { .. } = sectors[end] {
+                end -= 1;
+                if start >= end {
+                    break 'stop_the_world;
+                }
+            }
+
+            let file = &sectors[end];
+            let file_size = file.size();
+
+            // Ugly loop because while let/if let are insufficient
+            loop {
+                match sectors[start] {
+                    Sector::Empty { size } if size >= file_size => {
+                        break;
+                    }
+                    _ => {
+                        start += 1;
+                        if start >= end {
+                            end -= 1;
+
+                            if end <= 1 {
+                                break 'stop_the_world;
+                            } else {
+                                continue 'stop_the_world;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let free_space_oh_my = &mut sectors[start];
+
+            match free_space_oh_my {
+                Sector::Empty { ref mut size } => *size -= file_size,
+                Sector::File { .. } => unreachable!(),
+            }
+
+            let file = &sectors[end];
+
+            sectors.insert(start, file.clone());
+
+            sectors[end + 1] = Sector::Empty { size: file_size };
+
+            // eprintln!(
+            //     "{start} {end} {starts:?} {ends:?}",
+            //     starts = expanded[start],
+            //     ends = expanded[end]
+            // );
+            // expanded.swap(start, end);
+
+            if end <= 1 {
+                break;
+            } else {
+                end -= 1;
+            }
+        }
+
+        // drop empty sectors
+        self.sectors
+            .retain(|sector| !matches!(sector, Sector::Empty { size: 0 }));
+
+        let checksum = self
+            .expand()
+            .iter()
+            .enumerate()
+            .fold(0, |sum, (index, unit)| match unit {
+                Unit::Empty => sum,
+                Unit::File { id } => sum + index * id,
+            });
+
+        checksum
+    }
 }
 
 pub fn part1() {
@@ -113,7 +203,11 @@ pub fn part1() {
     dbg!(disk.move_singles_checksum());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let mut disk = Disk::from_str(INPUT);
+
+    dbg!(disk.move_files_checksum());
+}
 
 #[cfg(test)]
 mod tests {
@@ -131,5 +225,12 @@ mod tests {
         let disk = Disk::from_str("2333133121414131402");
 
         assert_eq!(disk.move_singles_checksum(), 1928);
+    }
+
+    #[test]
+    fn example_two() {
+        let mut disk = Disk::from_str("2333133121414131402");
+
+        assert_eq!(disk.move_files_checksum(), 2858);
     }
 }
