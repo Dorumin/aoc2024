@@ -59,73 +59,73 @@ impl City {
         }
     }
 
-    fn fill_resonances(&mut self) {
+    fn reverse_map(&self) -> HashMap<Antenna, HashSet<Coord>> {
         let mut reverse = HashMap::new();
         for (cell, antenna) in self.signalis.iter() {
-            reverse.entry(antenna).or_insert_with(HashSet::new).insert(*cell);
+            reverse
+                .entry(antenna.clone())
+                .or_insert_with(HashSet::new)
+                .insert(*cell);
         }
 
+        reverse
+    }
+
+    fn fill_resonances(&mut self) {
+        let reverse = self.reverse_map();
+
         for (antenna, cells) in reverse.into_iter() {
-            for cell in cells.iter() {
-                for other_cell in cells.iter().filter(|&c| c != cell) {
-                    let icell = (cell.0 as i64, cell.1 as i64);
-                    let iother_cell = (other_cell.0 as i64, other_cell.1 as i64);
+            self.resonances_for(&cells).for_each(|mut resonances| {
+                // skip root for 1st in-bounds resonance
+                let resonance = resonances.nth(1);
 
-                    let diff = (icell.0 - iother_cell.0, icell.1 - iother_cell.1);
-                    let end = (icell.0 + diff.0, icell.1 + diff.1);
-
-                    if end.0 < 0
-                        || end.0 >= self.width as i64
-                        || end.1 < 0
-                        || end.1 >= self.height as i64
-                    {
-                        // out of bounds
-                        continue;
-                    }
-
-                    let end = (end.0 as usize, end.1 as usize);
-
-                    self.resonance.entry(end).or_default().insert(antenna.clone());
+                if let Some(resonance) = resonance {
+                    self.resonance.entry(resonance).or_default().insert(antenna.clone());
                 }
-            }
+            });
         }
     }
 
     fn fill_resonances_repeating(&mut self) {
-        let mut reverse = HashMap::new();
-        for (cell, antenna) in self.signalis.iter() {
-            reverse.entry(antenna).or_insert_with(HashSet::new).insert(*cell);
-        }
+        let reverse = self.reverse_map();
 
         for (antenna, cells) in reverse.into_iter() {
-            for cell in cells.iter() {
-                'cell_loopsie_daisies: for other_cell in cells.iter().filter(|&c| c != cell) {
-                    let icell = (cell.0 as i64, cell.1 as i64);
-                    let iother_cell = (other_cell.0 as i64, other_cell.1 as i64);
-
-                    let diff = (icell.0 - iother_cell.0, icell.1 - iother_cell.1);
-                    let mut end = icell;
-
-                    loop {
-                        if end.0 < 0
-                            || end.0 >= self.width as i64
-                            || end.1 < 0
-                            || end.1 >= self.height as i64
-                        {
-                            // out of bounds
-                            continue 'cell_loopsie_daisies;
-                        }
-
-                        let uend = (end.0 as usize, end.1 as usize);
-
-                        self.resonance.entry(uend).or_default().insert(antenna.clone());
-
-                        // Perform the shift at the end of the loop to mark the antenna as resonant
-                        end = (end.0 + diff.0, end.1 + diff.1);
-                    }
-                }
-            }
+            self.resonances_for(&cells).for_each(|resonances| {
+                resonances.for_each(|resonance| {
+                    self.resonance.entry(resonance).or_default().insert(antenna.clone());
+                });
+            });
         }
+    }
+
+    fn resonances_for<'a>(
+        &self,
+        coords: &'a HashSet<Coord>,
+    ) -> impl Iterator<Item = impl Iterator<Item = Coord> + 'a> + 'a {
+        let width = self.width as i64;
+        let height = self.height as i64;
+
+        coords.iter().flat_map(move |cell| {
+            coords.iter().filter(move |&c| c != cell).map(move |other_cell| {
+                let icell = (cell.0 as i64, cell.1 as i64);
+                let iother_cell = (other_cell.0 as i64, other_cell.1 as i64);
+
+                let diff = (icell.0 - iother_cell.0, icell.1 - iother_cell.1);
+                let mut end = icell;
+
+                (0..).map_while(move |_| {
+                    if end.0 < 0 || end.0 >= width || end.1 < 0 || end.1 >= height {
+                        // out of bounds
+                        return None;
+                    }
+
+                    let uend = (end.0 as usize, end.1 as usize);
+                    end = (end.0 + diff.0, end.1 + diff.1);
+
+                    Some(uend)
+                })
+            })
+        })
     }
 }
 
