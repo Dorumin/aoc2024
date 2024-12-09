@@ -29,6 +29,7 @@ dependencies = [
  "day6",
  "day7",
  "day8",
+ "day9",
  "ureq",
 ]
 
@@ -98,6 +99,10 @@ version = "0.1.0"
 
 [[package]]
 name = "day8"
+version = "0.1.0"
+
+[[package]]
+name = "day9"
 version = "0.1.0"
 
 [[package]]
