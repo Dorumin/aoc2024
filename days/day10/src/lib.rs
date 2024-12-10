@@ -173,8 +173,8 @@ mod tests {
 10456732",
         );
 
-        assert_eq!(map.score_for_norepeat((2, 0)), 5);
-        assert_eq!(map.scores_increasing_total(), 36)
+        assert_eq!(map.score_for((2, 0), false), 5);
+        assert_eq!(map.scores_increasing_total(false), 36)
     }
 
     #[test]
@@ -189,8 +189,7 @@ mod tests {
 9.....9",
         );
 
-        // assert_eq!(map.score_for((2, 0)), 5);
-        assert_eq!(map.scores_increasing_total(), 2)
+        assert_eq!(map.scores_increasing_total(false), 2)
     }
 
     #[test]
@@ -205,8 +204,23 @@ mod tests {
 987....",
         );
 
-        // assert_eq!(map.score_for((2, 0)), 5);
-        assert_eq!(map.scores_increasing_total(), 4)
+        assert_eq!(map.scores_increasing_total(false), 4)
+    }
+
+    #[test]
+    fn example_two() {
+        let map = TopMap::from_str(
+            "89010123
+78121874
+87430965
+96549874
+45678903
+32019012
+01329801
+10456732",
+        );
+
+        assert_eq!(map.scores_increasing_total(true), 81)
     }
 
     #[test]
