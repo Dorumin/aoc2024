@@ -1,12 +1,14 @@
 use std::fmt::Write;
 
+use cached::proc_macro::cached;
+
 const INPUT: &str = include_str!("../../../inputs/day11.txt");
 
 struct Stones {
     stones: Vec<Stone>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 struct Stone(u64);
 
 impl Stones {
@@ -39,6 +41,10 @@ impl Stones {
 
         self.stones = stones;
     }
+
+    fn tick_memo(&self, steps: usize) -> usize {
+        self.stones.iter().map(|stone| tick_memo(stone.0, steps)).sum()
+    }
 }
 
 impl Stone {
@@ -61,6 +67,26 @@ impl Stone {
     }
 }
 
+#[cached]
+fn tick_memo(stone: u64, steps: usize) -> usize {
+    if steps == 0 {
+        return 1;
+    }
+
+    let buf = stone.to_string();
+
+    if buf.len() % 2 == 0 {
+        let left = buf[0..(buf.len() / 2)].parse().unwrap();
+        let right = buf[(buf.len() / 2)..buf.len()].parse().unwrap();
+
+        tick_memo(left, steps - 1) + tick_memo(right, steps - 1)
+    } else if stone == 0 {
+        tick_memo(1, steps - 1)
+    } else {
+        tick_memo(stone * 2024, steps - 1)
+    }
+}
+
 pub fn part1() {
     let mut stones = Stones::from_str(INPUT);
 
@@ -70,19 +96,7 @@ pub fn part1() {
 }
 
 pub fn part2() {
-    let mut stones = Stones::from_str(INPUT);
+    let stones = Stones::from_str(INPUT);
 
-    stones.tick(75);
-
-    dbg!(stones.stones.len());
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example_one() {
-        let thing = Stones::from_str("");
-    }
+    dbg!(stones.tick_memo(75));
 }
