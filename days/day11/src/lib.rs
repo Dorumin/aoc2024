@@ -8,7 +8,6 @@ struct Stones {
     stones: Vec<Stone>,
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 struct Stone(u64);
 
 impl Stones {
@@ -42,8 +41,13 @@ impl Stones {
         self.stones = stones;
     }
 
-    fn tick_memo(&self, steps: usize) -> usize {
-        self.stones.iter().map(|stone| tick_memo(stone.0, steps)).sum()
+    fn tick_memo(&self, steps: u32) -> usize {
+        let mut buf = String::new();
+
+        self.stones
+            .iter()
+            .map(|stone| tick_memo(stone.0, steps, &mut buf))
+            .sum()
     }
 }
 
@@ -67,23 +71,29 @@ impl Stone {
     }
 }
 
-#[cached]
-fn tick_memo(stone: u64, steps: usize) -> usize {
+#[cached(key = "(u64, u32)", convert = r##"{ (stone, steps) }"##)]
+fn tick_memo(stone: u64, steps: u32, buf: &mut String) -> usize {
     if steps == 0 {
         return 1;
     }
 
-    let buf = stone.to_string();
+    write!(buf, "{}", stone).unwrap();
 
     if buf.len() % 2 == 0 {
         let left = buf[0..(buf.len() / 2)].parse().unwrap();
         let right = buf[(buf.len() / 2)..buf.len()].parse().unwrap();
 
-        tick_memo(left, steps - 1) + tick_memo(right, steps - 1)
+        buf.clear();
+
+        tick_memo(left, steps - 1, buf) + tick_memo(right, steps - 1, buf)
     } else if stone == 0 {
-        tick_memo(1, steps - 1)
+        buf.clear();
+
+        tick_memo(1, steps - 1, buf)
     } else {
-        tick_memo(stone * 2024, steps - 1)
+        buf.clear();
+
+        tick_memo(stone * 2024, steps - 1, buf)
     }
 }
 
