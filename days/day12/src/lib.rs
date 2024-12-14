@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::HashSet;
 
 const INPUT: &str = include_str!("../../../inputs/day12.txt");
@@ -25,50 +27,10 @@ struct Region {
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 struct Edge(usize, usize, Flow);
 
-impl Edge {
-    fn next(&self) -> Self {
-        let dx = (self.2 == Flow::Right) as usize;
-        let dy = (self.2 == Flow::Down) as usize;
-
-        Self(self.0 + dx, self.1 + dy, self.2.clone())
-    }
-
-    fn prev(&self) -> Option<Self> {
-        let dx = (self.2 == Flow::Right) as usize;
-        let dy = (self.2 == Flow::Down) as usize;
-
-        Some(Self(
-            self.0.checked_sub(dx)?,
-            self.1.checked_sub(dy)?,
-            self.2.clone(),
-        ))
-    }
-
-    fn right(&self) -> Option<Self> {
-        let dx = (self.2 == Flow::Right) as usize;
-        let dy = (self.2 == Flow::Down) as usize;
-
-        Some(Self(
-            self.0.checked_sub(dx)?,
-            self.1.checked_sub(dy)?,
-            self.2.clone(),
-        ))
-    }
-}
-
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 enum Flow {
     Down,
     Right,
-}
-
-impl Flow {
-    fn rev(&self) -> Flow {
-        match self {
-            Flow::Down => Flow::Right,
-            Flow::Right => Flow::Down,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -102,21 +64,6 @@ impl Direction {
             Direction::Right => Direction::Down,
             Direction::Up => Direction::Right,
             Direction::Left => Direction::Up,
-        }
-    }
-
-    fn drive(&self, Edge(x, y, _): Edge, dir: Direction) -> Option<Edge> {
-        match self {
-            Direction::Down => Some(Edge(x, y + 1, Flow::Down)),
-            Direction::Right => Some(Edge(x, y + 1, Flow::Right)),
-
-            Direction::Up => match dir {
-                Direction::Down => panic!(),
-                Direction::Right => Some(Edge(x + 1, y.checked_sub(1)?, Flow::Down)),
-                Direction::Up => Some(Edge(x, y.checked_sub(1)?, Flow::Down)),
-                Direction::Left => Some(Edge(x, y.checked_sub(1)?, Flow::Down)),
-            },
-            Direction::Left => Some(Edge(x, y, Flow::Right)),
         }
     }
 }
@@ -222,7 +169,7 @@ impl Region {
         let area = coords.len() as u64;
         let (perimeter, sides) = Self::calc_perimeter(&coords, tiles);
 
-        eprintln!("final sides {sides} for {tile:?}");
+        // eprintln!("final sides {sides} for {tile:?}");
 
         Self {
             tile,
@@ -338,7 +285,7 @@ impl Region {
             let mut current = edge.clone();
             edged.insert(current.clone());
 
-            eprintln!("starting from {current:?}");
+            // eprintln!("starting from {current:?}");
 
             turns += 1;
 
@@ -354,7 +301,7 @@ impl Region {
                 if let Some(left) = next_left {
                     if edgeset.contains(&left) && !edged.contains(&left) {
                         direction = direction.left();
-                        eprintln!("turning left {left:?}, going {direction:?}");
+                        // eprintln!("turning left {left:?}, going {direction:?}");
                         current = left;
                         edged.insert(current.clone());
 
@@ -373,7 +320,7 @@ impl Region {
                 if let Some(right) = next_right {
                     if edgeset.contains(&right) && !edged.contains(&right) {
                         direction = direction.right();
-                        eprintln!("turning right {right:?}, going {direction:?}");
+                        // eprintln!("turning right {right:?}, going {direction:?}");
                         current = right;
                         edged.insert(current.clone());
 
@@ -396,7 +343,7 @@ impl Region {
                     }
 
                     if edgeset.contains(&forward) {
-                        eprintln!("forward {forward:?}");
+                        // eprintln!("forward {forward:?}");
                         current = forward;
                         edged.insert(current.clone());
 
@@ -410,7 +357,7 @@ impl Region {
                 // dbg!(current, direction);
 
                 // unreachable!("should never get here");
-                eprintln!("sides so far: {turns}");
+                // eprintln!("sides so far: {turns}");
                 break;
             }
         }
