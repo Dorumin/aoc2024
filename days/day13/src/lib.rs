@@ -70,19 +70,20 @@ impl Arcadia {
     fn sum_tokens(&self) -> u64 {
         self.machines
             .iter()
-            .filter_map(|machine| machine.solve(0))
+            .filter_map(|machine| machine.solve_g(0))
             .fold(0, |sum, (a, b)| sum + a * 3 + b)
     }
 
     fn sum_tokens_with_bullshit_offset(&self) -> u64 {
         self.machines
             .iter()
-            .filter_map(|broken_machine| broken_machine.solve(Self::ONE_GAZILLION))
+            .filter_map(|broken_machine| broken_machine.solve_g(Self::ONE_GAZILLION))
             .fold(0, |sum, (a, b)| sum + a * 3 + b)
     }
 }
 
 impl Machine {
+    #[allow(unused)]
     fn solve(&self, offset: i64) -> Option<(u64, u64)> {
         let Self {
             ax,
@@ -106,6 +107,32 @@ impl Machine {
         } else {
             Some((a as u64, b as u64))
         }
+    }
+
+    fn solve_g(&self, offset: i64) -> Option<(u64, u64)> {
+        let Self {
+            ax,
+            ay,
+            bx,
+            by,
+            mut px,
+            mut py,
+        } = self;
+        (py, px) = (py + offset, px + offset);
+
+        let r2 = (ax * bx - bx * ax, ax * by - bx * ay, ax * py - ay * px);
+
+        let b = (r2.2 as f64) / (r2.1 as f64);
+        if b.fract() != 0.0 {
+            return None;
+        }
+
+        let a = (px as f64 - *bx as f64 * b) / (*ax as f64);
+        if a.fract() != 0.0 {
+            return None;
+        }
+
+        Some((a as u64, b as u64))
     }
 }
 
@@ -137,5 +164,6 @@ mod tests {
         };
 
         assert_eq!(machine.solve(0), Some((80, 40)));
+        assert_eq!(machine.solve(0), machine.solve_g(0));
     }
 }
