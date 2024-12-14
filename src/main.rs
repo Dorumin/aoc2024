@@ -25,6 +25,7 @@ fn main() {
         "day11" => dispatch(day11::part1, day11::part2, &parte),
         "day12" => dispatch(day12::part1, day12::part2, &parte),
         "day13" => dispatch(day13::part1, day13::part2, &parte),
+        "day14" => dispatch(day14::part1, day14::part2, &parte),
         "fetch" => {
             let session =
                 std::fs::read_to_string("session.txt").expect("session.txt with session key");
