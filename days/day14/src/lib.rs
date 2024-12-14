@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 const INPUT: &str = include_str!("../../../inputs/day14.txt");
 
 type Offset = (usize, usize);
@@ -8,6 +10,7 @@ struct Bathroom {
     width: usize,
     height: usize,
     robots: Vec<BunBot>,
+    entropy: Cell<usize>,
 }
 
 #[derive(Debug)]
@@ -75,6 +78,7 @@ impl Bathroom {
             width,
             height,
             robots: input.lines().map(|line| BunBot::from_line(line).unwrap()).collect(),
+            entropy: Cell::new(0),
         }
     }
 
@@ -109,6 +113,56 @@ impl Bathroom {
     }
 }
 
+impl std::fmt::Display for Bathroom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.entropy.replace(0);
+
+        let mut chars = vec![None; self.width * self.height];
+
+        for robot in self.robots.iter() {
+            let (x, y) = robot.position;
+
+            *chars[y * self.width + x].get_or_insert(0) += 1;
+        }
+
+        let mut entropy = 0;
+
+        let mut s = String::with_capacity(self.width * self.height);
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let c = chars[y * self.width + x]
+                    .map(|n| {
+                        let c = n.to_string().chars().next().unwrap();
+
+                        entropy += 1;
+
+                        c
+                    })
+                    .unwrap_or_else(|| {
+                        if entropy > self.entropy.get() {
+                            self.entropy.replace(entropy);
+                        }
+
+                        entropy = 0;
+
+                        ' '
+                    });
+
+                s.push(c);
+            }
+
+            s.push('\n');
+        }
+
+        if entropy > self.entropy.get() {
+            self.entropy.replace(entropy);
+        }
+
+        f.write_str(&s)
+    }
+}
+
 pub fn part1() {
     let mut bathroom = Bathroom::from_str(INPUT, 101, 103);
 
@@ -119,7 +173,19 @@ pub fn part1() {
     dbg!(bathroom.count_quads());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let mut bathroom = Bathroom::from_str(INPUT, 101, 103);
+
+    for step in 0.. {
+        eprintln!("\u{1b}[2;1H;step {step}\n{bathroom}");
+
+        if bathroom.entropy.get() > 7 {
+            std::thread::sleep(std::time::Duration::from_millis(5000));
+        }
+
+        bathroom.tick();
+    }
+}
 
 #[cfg(test)]
 mod tests {
