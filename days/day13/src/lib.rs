@@ -18,6 +18,8 @@ struct Machine {
 }
 
 impl Arcadia {
+    const ONE_GAZILLION: i64 = 10000000000000;
+
     fn from_str(input: &str) -> Self {
         let bap_regex = Regex::new(r"^Button A: X\+(\d+), Y\+(\d+)$").unwrap();
         let bb_regex = Regex::new(r"^Button B: X\+(\d+), Y\+(\d+)$").unwrap();
@@ -68,21 +70,30 @@ impl Arcadia {
     fn sum_tokens(&self) -> u64 {
         self.machines
             .iter()
-            .filter_map(Machine::solve)
+            .filter_map(|machine| machine.solve(0))
+            .fold(0, |sum, (a, b)| sum + a * 3 + b)
+    }
+
+    fn sum_tokens_with_bullshit_offset(&self) -> u64 {
+        self.machines
+            .iter()
+            .filter_map(|broken_machine| broken_machine.solve(Self::ONE_GAZILLION))
             .fold(0, |sum, (a, b)| sum + a * 3 + b)
     }
 }
 
 impl Machine {
-    fn solve(&self) -> Option<(u64, u64)> {
+    fn solve(&self, offset: i64) -> Option<(u64, u64)> {
         let Self {
             ax,
             ay,
             bx,
             by,
-            px,
-            py,
+            mut px,
+            mut py,
         } = self;
+        (py, px) = (py + offset, px + offset);
+
         let deterrance = (ax * by - bx * ay) as f64;
         let determination = (ax * py - ay * px) as f64;
         let detachment = (px * by - bx * py) as f64;
@@ -104,7 +115,11 @@ pub fn part1() {
     dbg!(arcade.sum_tokens());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let arcade = Arcadia::from_str(INPUT);
+
+    dbg!(arcade.sum_tokens_with_bullshit_offset());
+}
 
 #[cfg(test)]
 mod tests {
@@ -121,6 +136,6 @@ mod tests {
             py: 5400,
         };
 
-        assert_eq!(machine.solve(), Some((80, 40)));
+        assert_eq!(machine.solve(0), Some((80, 40)));
     }
 }
