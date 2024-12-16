@@ -24,11 +24,13 @@ enum Move {
     Right,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Tile {
     Free,
     Wall,
     Box,
+    BoxLeft,
+    BoxRight,
     Bot,
 }
 
@@ -39,6 +41,18 @@ impl Tile {
             '#' => Self::Wall,
             'O' => Self::Box,
             '@' => Self::Bot,
+            '[' => Self::BoxLeft,
+            ']' => Self::BoxRight,
+            _ => unreachable!(),
+        }
+    }
+
+    fn from_char_fat(c: char) -> (Self, Self) {
+        match c {
+            '.' => (Self::Free, Self::Free),
+            '#' => (Self::Wall, Self::Wall),
+            'O' => (Self::BoxLeft, Self::BoxRight),
+            '@' => (Self::Bot, Self::Free),
             _ => unreachable!(),
         }
     }
@@ -49,6 +63,8 @@ impl Tile {
             Tile::Wall => '#',
             Tile::Box => 'O',
             Tile::Bot => '@',
+            Tile::BoxLeft => '[',
+            Tile::BoxRight => ']',
         }
     }
 }
@@ -89,6 +105,33 @@ impl Sokoban {
         }
     }
 
+    fn from_lines_fat(lines: &mut Lines) -> Self {
+        let mut width = 0;
+        let mut height = 0;
+        let mut tiles = vec![];
+
+        for line in lines {
+            if line.is_empty() {
+                break;
+            }
+
+            height += 1;
+            width = line.len() * 2;
+
+            line.chars().for_each(|c| {
+                let (left, right) = Tile::from_char_fat(c);
+                tiles.push(left);
+                tiles.push(right);
+            });
+        }
+
+        Self {
+            width,
+            height,
+            tiles,
+        }
+    }
+
     fn index(&self, (x, y): Coord) -> Tile {
         self.tiles[y * self.width + x].clone()
     }
@@ -98,7 +141,7 @@ impl Sokoban {
     }
 
     fn index_to_coord(&self, index: usize) -> Coord {
-        (index % self.height, index / self.height)
+        (index % self.width, index / self.width)
     }
 
     fn find_my_robot(&self) -> Coord {
@@ -115,6 +158,53 @@ impl Sokoban {
         moveset.moves.iter().cloned().for_each(|mov| self.push(mov));
     }
 
+    fn interactive(&mut self, moveset: &Moveset) {
+        for (index, mov) in moveset.moves.iter().enumerate() {
+            let next = &moveset
+                .moves
+                .get(index + 1)
+                .map(|mv| format!("{mv:?}"))
+                .unwrap_or(String::from("none"));
+
+            if index > 950 {
+                eprintln!("\u{1b}[2;1H");
+                eprintln!("{index} {mov:?} (next: {next})       ");
+                self.push(mov.clone());
+                eprint!("{self}");
+
+                let c = console::Term::stdout().read_key().unwrap();
+                dbg!(c);
+                // std::io::stdin().read_exact(&mut buf).unwrap();
+                // dbg!(&buf);
+                std::io::stdin().read_line(&mut String::new()).unwrap();
+            }
+        }
+    }
+
+    fn play(&mut self) {
+        eprintln!("\u{1b}[2;1H");
+        eprint!("{self}");
+
+        loop {
+            let mov = loop {
+                let c = console::Term::stdout().read_key().unwrap();
+
+                match c {
+                    console::Key::ArrowLeft => break Move::Left,
+                    console::Key::ArrowRight => break Move::Right,
+                    console::Key::ArrowUp => break Move::Up,
+                    console::Key::ArrowDown => break Move::Down,
+                    console::Key::Escape | console::Key::CtrlC => return,
+                    _ => {}
+                }
+            };
+
+            eprintln!("\u{1b}[2;1H");
+            self.push(mov.clone());
+            eprint!("{self}");
+        }
+    }
+
     fn push(&mut self, mv: Move) {
         let delta: (isize, isize) = match mv {
             Move::Up => (0, -1),
@@ -123,59 +213,125 @@ impl Sokoban {
             Move::Right => (1, 0),
         };
 
-        let next_free = |root: (usize, usize), delta: (isize, isize)| {
-            let mut check = root;
-
-            loop {
-                check.0 = (check.0 as isize + delta.0).try_into().ok()?;
-                check.1 = (check.1 as isize + delta.1).try_into().ok()?;
-
-                if check.0 >= self.width || check.1 >= self.height {
-                    break None;
-                }
-
-                let check_tile = self.index(check);
-
-                if matches!(check_tile, Tile::Wall) {
-                    break None;
-                }
-
-                if matches!(check_tile, Tile::Free) {
-                    break Some(check);
-                }
-            }
-        };
-
         let root = self.find_my_robot();
-        let empty = next_free(root, delta);
 
-        if let Some(free) = empty {
-            self.shift_to(root, free, delta);
-        }
+        self.shift_to(root, delta);
     }
 
-    fn shift_to(&mut self, from: Coord, to: Coord, delta: (isize, isize)) {
-        assert!(matches!(self.index(to), Tile::Free));
+    fn shift_to(&mut self, from: Coord, delta: (isize, isize)) {
+        let mut patch_list = vec![(from, Tile::Free)];
+        let mut cleanup = vec![];
+        // "current tiles" which will be checked for free space in front
+        let mut current_list = vec![from];
 
-        let mut current = to;
+        loop {
+            let mut patches = vec![];
 
-        while current != from {
-            let prev: Coord = (
-                (current.0 as isize - delta.0).try_into().unwrap(),
-                (current.1 as isize - delta.1).try_into().unwrap(),
-            );
+            for current in current_list {
+                let current_tile = self.index(current);
 
-            *self.index_mut(current) = self.index(prev);
+                let mut next = vec![];
 
-            current = prev;
+                if !matches!(current_tile, Tile::Free) {
+                    cleanup.push(current);
+
+                    next.push((
+                        (current.0 as isize + delta.0).try_into().ok().unwrap(),
+                        (current.1 as isize + delta.1).try_into().ok().unwrap(),
+                        current_tile.clone(),
+                    ));
+                }
+
+                match current_tile {
+                    Tile::BoxLeft if delta.1 != 0 => {
+                        cleanup.push((current.0 + 1, current.1));
+                        next.push((
+                            (current.0 as isize + delta.0 + 1).try_into().ok().unwrap(),
+                            (current.1 as isize + delta.1).try_into().ok().unwrap(),
+                            Tile::BoxRight,
+                        ));
+                    }
+                    Tile::BoxRight if delta.1 != 0 => {
+                        cleanup.push((current.0 - 1, current.1));
+                        next.push((
+                            (current.0 as isize + delta.0 - 1).try_into().ok().unwrap(),
+                            (current.1 as isize + delta.1).try_into().ok().unwrap(),
+                            Tile::BoxLeft,
+                        ))
+                    }
+                    _ => {}
+                }
+
+                if next.iter().any(|(x, y, _)| *x >= self.width || *y >= self.height) {
+                    panic!("out of bounds lmao add walls to the edges you tool");
+                }
+
+                if next
+                    .iter()
+                    .any(|(x, y, _)| matches!(self.index((*x, *y)), Tile::Wall))
+                {
+                    // eprintln!("walled");
+                    return;
+                }
+
+                patches.extend(next);
+                // if !matches!(current_tile, Tile::Free) {
+                //     patches.push((current, current_tile.clone()));
+                // }
+
+                // patched.insert(current, original_tile.clone());
+
+                // expand patch list if pushing fat box vertically
+                // if delta.1 != 0 {
+                //     // eprintln!("{patched_tile:?}");
+
+                //     if let Tile::BoxLeft = current_tile {
+                //         let right_shifted = (current.0 + 1, current.1);
+                //         let item = (right_shifted, Tile::BoxRight);
+
+                //         cleanup.push(((current.0 + 1, current.1), Tile::Free));
+                //         patches.push(item);
+                //         patched.insert(right_shifted, Tile::BoxRight);
+                //     }
+
+                //     if let Tile::BoxRight = current_tile {
+                //         let left_shifted = (current.0 - 1, current.1);
+                //         let item = (left_shifted, Tile::BoxLeft);
+                //         cleanup.push(((current.0 - 1, current.1), Tile::Free));
+                //         patches.push(item);
+                //         patched.insert(left_shifted, Tile::BoxLeft);
+                //     }
+                // }
+            }
+
+            current_list = patches.iter().map(|(x, y, _)| (*x, *y)).collect();
+
+            // dbg!(&patches);
+
+            patch_list.extend(patches.into_iter().map(|(x, y, tile)| ((x, y), tile)));
+
+            let all_tiles_free = current_list
+                .iter()
+                .map(|check| self.index(*check))
+                .all(|check_tile| matches!(check_tile, Tile::Free));
+
+            if all_tiles_free {
+                break;
+            }
         }
 
-        *self.index_mut(from) = Tile::Free;
+        for coord in cleanup {
+            *self.index_mut(coord) = Tile::Free;
+        }
+
+        for (coord, tile) in patch_list {
+            *self.index_mut(coord) = tile;
+        }
     }
 
     fn sum(&self) -> u64 {
         self.tiles.iter().enumerate().fold(0, |sum, (index, tile)| {
-            if let Tile::Box = tile {
+            if let Tile::Box | Tile::BoxLeft = tile {
                 let pos = self.index_to_coord(index);
 
                 sum + pos.1 as u64 * 100 + pos.0 as u64
@@ -220,7 +376,30 @@ pub fn part1() {
     dbg!(sokoban.sum());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    // let mut lines = INPUT.lines();
+    // let mut sokoban = Sokoban::from_lines_fat(&mut lines);
+    // let moveset = Moveset::from_lines(&mut lines);
+
+    // sokoban.poosh(&moveset);
+
+    // dbg!(sokoban.sum());
+
+    let mut lines = INPUT.lines();
+
+    let mut sokoban = Sokoban::from_lines_fat(&mut lines);
+    let moveset = Moveset::from_lines(&mut lines);
+
+    if std::env::args().any(|arg| arg == "--interactive") {
+        sokoban.interactive(&moveset);
+    } else if std::env::args().any(|arg| arg == "--play") {
+        sokoban.play();
+    } else {
+        sokoban.poosh(&moveset);
+    }
+
+    dbg!(sokoban.sum());
+}
 
 #[cfg(test)]
 mod tests {
@@ -246,5 +425,116 @@ mod tests {
         sokoban.poosh(&moveset);
 
         println!("{sokoban}");
+    }
+
+    #[test]
+    fn example_fat() {
+        let mut lines = "#######
+#...#.#
+#.....#
+#..OO@#
+#..O..#
+#.....#
+#######
+
+<vv<<^^<<^^"
+            .lines();
+
+        let mut sokoban = Sokoban::from_lines_fat(&mut lines);
+        let moveset = Moveset::from_lines(&mut lines);
+
+        sokoban.poosh(&moveset);
+
+        println!("{sokoban}");
+    }
+
+    #[test]
+    fn example_fat2() {
+        let mut lines = "#######
+#...#.#
+#.....#
+#@OO..#
+#..O..#
+#.....#
+#######
+
+<vv<<^^<<^^"
+            .lines();
+
+        let mut sokoban = Sokoban::from_lines_fat(&mut lines);
+
+        println!("{sokoban}");
+        sokoban.push(Move::Right);
+        println!("{sokoban}");
+        sokoban.push(Move::Right);
+        println!("{sokoban}");
+        sokoban.push(Move::Down);
+        println!("{sokoban}");
+        sokoban.push(Move::Right);
+        println!("{sokoban}");
+        sokoban.push(Move::Up);
+        println!("{sokoban}");
+    }
+
+    #[test]
+    fn example_big_fat() {
+        let mut lines = "##########
+#..O..O.O#
+#......O.#
+#.OO..O.O#
+#..O@..O.#
+#O#..O...#
+#O..O..O.#
+#.OO.O.OO#
+#....O...#
+##########
+
+<vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
+vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
+><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
+<<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
+^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
+^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
+>^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
+<><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
+^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
+v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^"
+            .lines();
+
+        let mut sokoban = Sokoban::from_lines_fat(&mut lines);
+        let moveset = Moveset::from_lines(&mut lines);
+
+        eprintln!("{sokoban}");
+        for (index, mov) in moveset.moves.into_iter().enumerate() {
+            eprintln!("{index} {mov:?}");
+            sokoban.push(mov);
+
+            if index > 310 {
+                eprintln!("{sokoban}");
+            }
+        }
+    }
+
+    #[test]
+    fn push_down() {
+        let mut lines = "\
+############
+##....[][]##
+##..@..[].##
+##..[][][]##
+##...[][].##
+##[]......##
+##[]..[]..##
+##.[].[][]##
+##........##
+############
+
+^vvvv"
+            .lines();
+
+        let mut sokoban = Sokoban::from_lines(&mut lines);
+        let moveset = Moveset::from_lines(&mut lines);
+
+        sokoban.interactive(&moveset);
     }
 }
