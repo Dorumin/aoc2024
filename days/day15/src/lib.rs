@@ -172,10 +172,6 @@ impl Sokoban {
                 self.push(mov.clone());
                 eprint!("{self}");
 
-                let c = console::Term::stdout().read_key().unwrap();
-                dbg!(c);
-                // std::io::stdin().read_exact(&mut buf).unwrap();
-                // dbg!(&buf);
                 std::io::stdin().read_line(&mut String::new()).unwrap();
             }
         }
@@ -275,38 +271,9 @@ impl Sokoban {
                 }
 
                 patches.extend(next);
-                // if !matches!(current_tile, Tile::Free) {
-                //     patches.push((current, current_tile.clone()));
-                // }
-
-                // patched.insert(current, original_tile.clone());
-
-                // expand patch list if pushing fat box vertically
-                // if delta.1 != 0 {
-                //     // eprintln!("{patched_tile:?}");
-
-                //     if let Tile::BoxLeft = current_tile {
-                //         let right_shifted = (current.0 + 1, current.1);
-                //         let item = (right_shifted, Tile::BoxRight);
-
-                //         cleanup.push(((current.0 + 1, current.1), Tile::Free));
-                //         patches.push(item);
-                //         patched.insert(right_shifted, Tile::BoxRight);
-                //     }
-
-                //     if let Tile::BoxRight = current_tile {
-                //         let left_shifted = (current.0 - 1, current.1);
-                //         let item = (left_shifted, Tile::BoxLeft);
-                //         cleanup.push(((current.0 - 1, current.1), Tile::Free));
-                //         patches.push(item);
-                //         patched.insert(left_shifted, Tile::BoxLeft);
-                //     }
-                // }
             }
 
             current_list = patches.iter().map(|(x, y, _)| (*x, *y)).collect();
-
-            // dbg!(&patches);
 
             patch_list.extend(patches.into_iter().map(|(x, y, tile)| ((x, y), tile)));
 
@@ -377,14 +344,6 @@ pub fn part1() {
 }
 
 pub fn part2() {
-    // let mut lines = INPUT.lines();
-    // let mut sokoban = Sokoban::from_lines_fat(&mut lines);
-    // let moveset = Moveset::from_lines(&mut lines);
-
-    // sokoban.poosh(&moveset);
-
-    // dbg!(sokoban.sum());
-
     let mut lines = INPUT.lines();
 
     let mut sokoban = Sokoban::from_lines_fat(&mut lines);
@@ -425,11 +384,13 @@ mod tests {
         sokoban.poosh(&moveset);
 
         println!("{sokoban}");
+        assert_eq!(sokoban.sum(), 2028);
     }
 
     #[test]
     fn example_fat() {
-        let mut lines = "#######
+        let mut lines = "\
+#######
 #...#.#
 #.....#
 #..OO@#
@@ -446,34 +407,7 @@ mod tests {
         sokoban.poosh(&moveset);
 
         println!("{sokoban}");
-    }
-
-    #[test]
-    fn example_fat2() {
-        let mut lines = "#######
-#...#.#
-#.....#
-#@OO..#
-#..O..#
-#.....#
-#######
-
-<vv<<^^<<^^"
-            .lines();
-
-        let mut sokoban = Sokoban::from_lines_fat(&mut lines);
-
-        println!("{sokoban}");
-        sokoban.push(Move::Right);
-        println!("{sokoban}");
-        sokoban.push(Move::Right);
-        println!("{sokoban}");
-        sokoban.push(Move::Down);
-        println!("{sokoban}");
-        sokoban.push(Move::Right);
-        println!("{sokoban}");
-        sokoban.push(Move::Up);
-        println!("{sokoban}");
+        assert_eq!(sokoban.sum(), 618);
     }
 
     #[test]
@@ -504,15 +438,10 @@ v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^"
         let mut sokoban = Sokoban::from_lines_fat(&mut lines);
         let moveset = Moveset::from_lines(&mut lines);
 
-        eprintln!("{sokoban}");
-        for (index, mov) in moveset.moves.into_iter().enumerate() {
-            eprintln!("{index} {mov:?}");
-            sokoban.push(mov);
+        sokoban.poosh(&moveset);
 
-            if index > 310 {
-                eprintln!("{sokoban}");
-            }
-        }
+        println!("{sokoban}");
+        assert_eq!(sokoban.sum(), 9021);
     }
 
     #[test]
@@ -536,5 +465,7 @@ v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^"
         let moveset = Moveset::from_lines(&mut lines);
 
         sokoban.interactive(&moveset);
+
+        assert_eq!(sokoban.sum(), 5978);
     }
 }
