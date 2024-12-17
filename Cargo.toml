@@ -20,6 +20,7 @@ members = [
     "days/day13",
     "days/day14",
     "days/day15",
+    "days/day16",
 ]
 
 [dependencies]
@@ -39,3 +40,4 @@ day12 = { path = "./days/day12" }
 day13 = { path = "./days/day13" }
 day14 = { path = "./days/day14" }
 day15 = { path = "./days/day15" }
+day16 = { path = "./days/day16" }
