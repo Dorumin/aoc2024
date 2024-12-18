@@ -156,12 +156,21 @@ pub fn part2() {
 
     // good start
     ram.fall(1024);
+
+    let mut ruta = ram.dijkstra();
+
     for _ in 0.. {
+        let fuckbyte = ram.bytes[ram.fallen];
         ram.fall(1);
 
-        if ram.dijkstra().is_empty() {
+        if !ruta.contains(&fuckbyte) {
+            continue;
+        }
+
+        ruta = ram.dijkstra();
+
+        if ruta.is_empty() {
             dbg!(ram.fallen);
-            let fuckbyte = ram.bytes[ram.fallen - 1];
             dbg!(fuckbyte);
 
             break;
