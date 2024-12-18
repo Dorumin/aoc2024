@@ -96,12 +96,23 @@ impl Ram {
 
     // Pathfinding 2.0
     fn dijkstra(&self) -> Vec<Coord> {
+        self.dijkstra_dirty(&mut Vec::new(), &mut Vec::new())
+    }
+
+    fn dijkstra_dirty(
+        &self,
+        costos: &mut Vec<Option<i32>>,
+        daddies: &mut Vec<Option<Coord>>,
+    ) -> Vec<Coord> {
+        costos.truncate(0);
+        daddies.truncate(0);
+        costos.resize(self.width * self.height, None);
+        daddies.resize(self.width * self.height, None);
+
         let start = self.start();
         let end = self.end();
 
         let mut pqueue = BinaryHeap::new();
-        let mut costos = vec![None; self.width * self.height];
-        let mut daddies = vec![None; self.width * self.height];
 
         pqueue.push((Reverse(0), start));
         costos[start.1 * self.width + start.0] = Some(0);
@@ -159,7 +170,9 @@ pub fn part2() {
     // good start
     ram.fall(1024);
 
-    let mut ruta = ram.dijkstra();
+    let mut dads = Vec::new();
+    let mut costs = Vec::new();
+    let mut ruta = ram.dijkstra_dirty(&mut dads, &mut costs);
 
     for _ in 0.. {
         let fuckbyte = ram.bytes[ram.fallen];
@@ -169,7 +182,7 @@ pub fn part2() {
             continue;
         }
 
-        ruta = ram.dijkstra();
+        ruta = ram.dijkstra_dirty(&mut dads, &mut costs);
 
         if ruta.is_empty() {
             dbg!(ram.fallen);
