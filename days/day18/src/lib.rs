@@ -150,7 +150,24 @@ pub fn part1() {
     dbg!(ram.dijkstra().len());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    // 71 fucking tiles because it goes from 0..70
+    let mut ram = Ram::from_str(INPUT, 71, 71);
+
+    // good start
+    ram.fall(1024);
+    for _ in 0.. {
+        ram.fall(1);
+
+        if ram.dijkstra().is_empty() {
+            dbg!(ram.fallen);
+            let fuckbyte = ram.bytes[ram.fallen - 1];
+            dbg!(fuckbyte);
+
+            break;
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
