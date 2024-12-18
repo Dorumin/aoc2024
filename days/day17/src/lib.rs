@@ -1,4 +1,4 @@
-use std::{str::Lines, sync::atomic::AtomicU64};
+use std::str::Lines;
 
 const INPUT: &str = include_str!("../../../inputs/day17.txt");
 
@@ -182,70 +182,6 @@ impl Program {
     }
 
     fn find_quine(&mut self) -> u64 {
-        // // One down, twenty million dead.
-        // const ONE_MILLION: u64 = 1_000_000;
-
-        // let next = AtomicU64::new(33052000000);
-
-        // // Forty million.
-        // std::thread::scope(|s| {
-        //     eprintln!();
-        //     eprintln!();
-
-        //     for _ in 0..=4 {
-        //         let mut output = Vec::new();
-        //         let mut copy = self.clone();
-        //         let next = &next;
-
-        //         // Sixty million.
-        //         s.spawn(move || {
-        //             loop {
-        //                 let our_start =
-        //                     next.fetch_add(ONE_MILLION, std::sync::atomic::Ordering::SeqCst);
-
-        //                 // Eighty million.
-        //                 for a in 0..ONE_MILLION {
-        //                     copy.registers.a = our_start + a;
-        //                     copy.pointer = 0;
-
-        //                     while copy.tick(&mut output).is_some() {
-        //                         // Bail out early if it's clearly not going to work
-        //                         if output.len() > copy.instructions.len() {
-        //                             break;
-        //                         }
-
-        //                         if output
-        //                             .iter()
-        //                             .zip(copy.instructions.iter())
-        //                             .any(|(o, i)| *o != i.0)
-        //                         {
-        //                             break;
-        //                         }
-        //                     }
-
-        //                     let all_lines_up = output.len() == copy.instructions.len()
-        //                         && output
-        //                             .iter()
-        //                             .zip(copy.instructions.iter())
-        //                             .all(|(o, i)| *o == i.0);
-
-        //                     // One hundred million!
-        //                     if all_lines_up {
-        //                         println!("!!! WE FOUND A FUCKING MATCH!!! {a}");
-        //                         println!("!!! WE FOUND A FUCKING MATCH!!! {a}");
-        //                         println!("!!! WE FOUND A FUCKING MATCH!!! {a}");
-        //                         panic!();
-        //                     } else {
-        //                         output.clear();
-        //                     }
-        //                 }
-
-        //                 eprint!("\rfinished up to: {our_start}");
-        //             }
-        //         });
-        //     }
-        // });
-
         let mut output = Vec::new();
 
         // Given pux's program analysis, only three bits at a time matter
@@ -307,88 +243,6 @@ impl Program {
                 triptetmocoquecahedrons[i] += 1;
             }
         }
-
-        // 'ahead: for (i, inst) in self.instructions.clone().iter().rev().enumerate() {
-        //     for alt in alternations(&triptetmocoquecahedrons, i) {
-        //         dbg!(alt);
-        //     }
-
-        //     for offset in 0..=7 {
-        //         // dbg!(triptetmocoquecahedron + i);
-
-        //         self.pointer = 0;
-        //         self.registers.a = 0 + offset;
-
-        //         while self.tick(&mut output).is_some() {
-        //             // // Bail out early if it's clearly not going to work
-        //             // if output.len() > self.instructions.len() {
-        //             //     break;
-        //             // }
-
-        //             // if output.iter().zip(self.instructions.iter()).any(|(o, i)| *o != i.0) {
-        //             //     break;
-        //             // }
-        //         }
-
-        //         eprintln!("{output:?}");
-
-        //         let all_lines_up = output.len() == self.instructions.len()
-        //             && output.iter().zip(self.instructions.iter()).all(|(o, i)| *o == i.0);
-
-        //         if all_lines_up {
-        //             return 0;
-        //         }
-
-        //         let last_lines_up = output.len() == i + 1 && output.first() == Some(&inst.0);
-
-        //         if last_lines_up {
-        //             triptetmocoquecahedrons[i].push(offset);
-        //             // triptetmocoquecahedron += offset;
-        //             // triptetmocoquecahedron <<= 3;
-        //             // dbg!(triptetmocoquecahedron);
-        //             dbg!(offset);
-        //         }
-
-        //         output.clear();
-        //     }
-
-        //     eprintln!("final count: {}", triptetmocoquecahedrons[i].len());
-        //     // unreachable!();
-        // }
-
-        unreachable!();
-
-        // 20190500000
-        for a in 9366700000.. {
-            if a % 1000000 == 0 {
-                eprintln!("{a}");
-            }
-
-            self.pointer = 0;
-            self.registers.a = a;
-
-            while self.tick(&mut output).is_some() {
-                // Bail out early if it's clearly not going to work
-                if output.len() > self.instructions.len() {
-                    break;
-                }
-
-                if output.iter().zip(self.instructions.iter()).any(|(o, i)| *o != i.0) {
-                    break;
-                }
-            }
-
-            let all_lines_up = output.len() == self.instructions.len()
-                && output.iter().zip(self.instructions.iter()).all(|(o, i)| *o == i.0);
-
-            if all_lines_up {
-                return a;
-            } else {
-                output.clear();
-            }
-        }
-
-        unreachable!()
     }
 }
 
@@ -434,15 +288,5 @@ fn int_matcher() -> impl FnMut(char) -> bool {
         index += 1;
 
         matched
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example_one() {
-        let thing = Program::from_str("");
     }
 }
