@@ -1,7 +1,4 @@
-use std::{
-    cmp::Reverse,
-    collections::{BinaryHeap, HashMap},
-};
+use std::{cmp::Reverse, collections::BinaryHeap};
 
 const INPUT: &str = include_str!("../../../inputs/day18.txt");
 
@@ -49,10 +46,6 @@ impl Ram {
         &mut self.tiles[y * self.width + x]
     }
 
-    fn index_to_coord(&self, index: usize) -> Coord {
-        (index % self.width, index / self.width)
-    }
-
     fn fall(&mut self, count: usize) {
         // Sneaky borrow
         let mut bytes = std::mem::take(&mut self.bytes);
@@ -65,7 +58,7 @@ impl Ram {
         self.fallen += count;
     }
 
-    fn adj(&self, (x, y): Coord) -> impl Iterator<Item = (Coord)> {
+    fn adj(&self, (x, y): Coord) -> impl Iterator<Item = Coord> {
         let width = self.width as isize;
         let height = self.height as isize;
 
@@ -152,6 +145,29 @@ impl Ram {
 
         pathximus
     }
+
+    fn fall_until_blocked(&mut self) -> (usize, Coord) {
+        let mut dads = Vec::new();
+        let mut costs = Vec::new();
+        let mut ruta = self.dijkstra_dirty(&mut dads, &mut costs);
+
+        for _ in 0.. {
+            let fuckbyte = self.bytes[self.fallen];
+            self.fall(1);
+
+            if !ruta.contains(&fuckbyte) {
+                continue;
+            }
+
+            ruta = self.dijkstra_dirty(&mut dads, &mut costs);
+
+            if ruta.is_empty() {
+                return (self.fallen - 1, fuckbyte);
+            }
+        }
+
+        unreachable!()
+    }
 }
 
 pub fn part1() {
@@ -164,33 +180,16 @@ pub fn part1() {
 }
 
 pub fn part2() {
-    // 71 fucking tiles because it goes from 0..70
+    // 71 fucking tiles because it goes from 0..=70
     let mut ram = Ram::from_str(INPUT, 71, 71);
 
-    // good start
+    // safe start from p1
     ram.fall(1024);
 
-    let mut dads = Vec::new();
-    let mut costs = Vec::new();
-    let mut ruta = ram.dijkstra_dirty(&mut dads, &mut costs);
+    let (index, byte) = ram.fall_until_blocked();
 
-    for _ in 0.. {
-        let fuckbyte = ram.bytes[ram.fallen];
-        ram.fall(1);
-
-        if !ruta.contains(&fuckbyte) {
-            continue;
-        }
-
-        ruta = ram.dijkstra_dirty(&mut dads, &mut costs);
-
-        if ruta.is_empty() {
-            dbg!(ram.fallen);
-            dbg!(fuckbyte);
-
-            break;
-        }
-    }
+    dbg!(index);
+    dbg!(byte);
 }
 
 #[cfg(test)]
@@ -233,6 +232,7 @@ mod tests {
 
         ram.fall(12);
 
-        dbg!(ram.dijkstra().len());
+        assert_eq!(ram.dijkstra().len(), 22);
+        assert_eq!(ram.fall_until_blocked(), (20, (6, 1)));
     }
 }
