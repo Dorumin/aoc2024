@@ -100,10 +100,11 @@ impl Ram {
         let end = self.end();
 
         let mut pqueue = BinaryHeap::new();
-        let mut costos = HashMap::new();
-        let mut daddies = HashMap::new();
+        let mut costos = vec![None; self.width * self.height];
+        let mut daddies = vec![None; self.width * self.height];
+
         pqueue.push((Reverse(0), start));
-        costos.insert(start, 0);
+        costos[start.1 * self.width + start.0] = Some(0);
 
         while let Some((Reverse(cost), coord)) = pqueue.pop() {
             if coord == end {
@@ -117,12 +118,12 @@ impl Ram {
                 }
 
                 let new_cost = cost + 1;
-                let existing_cost = costos.get(&next);
-                let is_cheaper = existing_cost.is_none() || *existing_cost.unwrap() > new_cost;
+                let existing_cost = costos[next.1 * self.width + next.0];
+                let is_cheaper = existing_cost.is_none() || existing_cost.unwrap() > new_cost;
 
                 if is_cheaper {
-                    costos.insert(next, new_cost);
-                    daddies.insert(next, coord);
+                    costos[next.1 * self.width + next.0] = Some(new_cost);
+                    daddies[next.1 * self.width + next.0] = Some(coord);
                     pqueue.push((Reverse(new_cost), next));
                 }
             }
@@ -130,9 +131,10 @@ impl Ram {
 
         let mut pathximus = vec![];
         let mut cur = end;
-        while let Some(p) = daddies.get(&cur) {
+
+        while let Some(p) = daddies[cur.1 * self.width + cur.0] {
             pathximus.push(cur);
-            cur = *p;
+            cur = p;
         }
 
         pathximus.reverse();
