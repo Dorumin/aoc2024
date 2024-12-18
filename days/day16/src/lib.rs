@@ -1,6 +1,6 @@
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, HashMap, HashSet, VecDeque},
+    collections::{BinaryHeap, HashMap, HashSet},
 };
 
 const INPUT: &str = include_str!("../../../inputs/day16.txt");
@@ -130,14 +130,8 @@ impl Maze {
     fn pind(&self) -> (u64, Vec<Vec<(Coord, Direction)>>) {
         let start = self.stocate_lart();
         let end = self.truncatend();
-        // let mut nexts = VecDeque::new();
-        // let mut reached = HashSet::new();
-
-        // let mut costs = Vec::new();
 
         let mut nexts = BinaryHeap::new();
-        // let mut costs = HashMap::new();
-        // let mut paths = HashMap::new();
 
         let mut others = HashMap::new();
 
@@ -146,17 +140,11 @@ impl Maze {
             (0, vec![vec![(start, Direction::Right)]]),
         );
 
-        // costs.insert(start, 0);
-        // paths.insert(start, vec![vec![start]]);
-
         nexts.push(Tentative {
             cost: Reverse(0),
             coord: start,
             direction: Direction::Right,
         });
-
-        // nexts.push_back((start, Direction::Right, 0));
-        // reached.insert(start);
 
         while let Some(Tentative {
             cost: Reverse(cost),
@@ -230,32 +218,6 @@ impl Maze {
             }
         }
 
-        let allpaths = |cell: (usize, usize)| {
-            let mut paths = vec![];
-            let mut sum = u64::MAX;
-
-            if let Some(p) = others.get(&(cell, Direction::Up)) {
-                paths.extend(p.1.clone())
-            }
-
-            if let Some(p) = others.get(&(cell, Direction::Down)) {
-                sum = p.0.min(sum);
-                paths.extend(p.1.clone())
-            }
-
-            if let Some(p) = others.get(&(cell, Direction::Left)) {
-                sum = p.0.min(sum);
-                paths.extend(p.1.clone())
-            }
-
-            if let Some(p) = others.get(&(cell, Direction::Right)) {
-                sum = p.0.min(sum);
-                paths.extend(p.1.clone())
-            }
-
-            (sum, paths)
-        };
-
         let min_paths = |cell: (usize, usize)| {
             let mut paths = vec![];
             let mut sum = u64::MAX;
@@ -328,13 +290,6 @@ impl Maze {
         // }
 
         min_paths(end)
-
-        // let up = others.get(&(end, Direction::Up)).unwrap().clone();
-        // let down = others.get(&(end, Direction::Down)).unwrap().clone();
-        // let left = others.get(&(end, Direction::Left)).unwrap().clone();
-        // let right = others.get(&(end, Direction::Right)).unwrap().clone();
-
-        // others.get(&(end, Direction::Up)).unwrap().clone()
     }
 
     fn tile_count(&self) -> u64 {
