@@ -28,7 +28,7 @@ enum Tile {
     End,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Direction {
     // also known as "north"
     Up,
@@ -104,7 +104,7 @@ impl Maze {
     }
 
     fn index_to_coord(&self, index: usize) -> Coord {
-        (index % self.height, index / self.height)
+        (index % self.width, index / self.width)
     }
 
     fn stocate_lart(&self) -> Coord {
@@ -127,7 +127,7 @@ impl Maze {
             .unwrap()
     }
 
-    fn pind(&self) -> (u64, Vec<Vec<Coord>>) {
+    fn pind(&self) -> (u64, Vec<Vec<(Coord, Direction)>>) {
         let start = self.stocate_lart();
         let end = self.truncatend();
         // let mut nexts = VecDeque::new();
@@ -141,7 +141,10 @@ impl Maze {
 
         let mut others = HashMap::new();
 
-        others.insert(start, (0, vec![vec![]]));
+        others.insert(
+            (start, Direction::Right),
+            (0, vec![vec![(start, Direction::Right)]]),
+        );
 
         // costs.insert(start, 0);
         // paths.insert(start, vec![vec![start]]);
@@ -161,10 +164,9 @@ impl Maze {
             direction,
         }) = nexts.pop()
         {
-            eprintln!("nexts: {} others {}", nexts.len(), others.len());
-            eprintln!("at {coord:?} going {direction:?} for {cost:?}");
+            // eprintln!("at {coord:?} going {direction:?} for {cost:?}");
 
-            let other = others.get(&coord).cloned();
+            let other = others.get(&(coord, direction.clone())).cloned();
 
             if let Some((other_cost, _)) = other.as_ref() {
                 // && is too hard for a 10 year old language to figure out
@@ -173,7 +175,7 @@ impl Maze {
                 }
             }
 
-            for (next_coord, direction, added_cost) in self.adj(coord, direction) {
+            for (next_coord, next_direction, added_cost) in self.adj(coord, direction) {
                 if matches!(self.index(next_coord), Tile::Wall) {
                     continue;
                 }
@@ -181,56 +183,170 @@ impl Maze {
                 let new_cost = cost + added_cost;
 
                 let other_cost = others
-                    .get(&next_coord)
+                    .get(&(next_coord, next_direction.clone()))
                     .as_ref()
                     .map(|other| other.0)
                     .unwrap_or(u64::MAX);
 
-                if new_cost < other_cost {
-                    // eprintln!("{coord:?} to {next_coord:?} for {new_cost} over {other_cost}");
+                match new_cost.cmp(&other_cost) {
+                    std::cmp::Ordering::Less => {
+                        if next_coord == end {
+                            eprintln!("reached end for {new_cost}");
+                        }
 
-                    let mut new_paths = other.as_ref().map(|o| o.1.clone()).unwrap_or_default();
+                        let mut new_paths = other.as_ref().map(|o| o.1.clone()).unwrap_or_default();
 
-                    new_paths.iter_mut().for_each(|p| p.push(coord));
+                        new_paths
+                            .iter_mut()
+                            .for_each(|p| p.push((next_coord, next_direction.clone())));
 
-                    others.insert(next_coord, (new_cost, new_paths));
+                        others.insert((next_coord, next_direction.clone()), (new_cost, new_paths));
 
-                    nexts.push(Tentative {
-                        cost: Reverse(new_cost),
-                        coord: next_coord,
-                        direction: direction.clone(),
-                    });
-                }
-
-                if new_cost == other_cost {
-                    eprintln!("new cost is same as other cost");
-
-                    let mut new_paths = other.as_ref().map(|o| o.1.clone()).unwrap_or_default();
-
-                    new_paths.iter_mut().for_each(|p| p.push(coord));
-
-                    let paths = &mut others.get_mut(&next_coord).unwrap().1;
-
-                    for new_path in new_paths {
-                        paths.push(new_path);
+                        nexts.push(Tentative {
+                            cost: Reverse(new_cost),
+                            coord: next_coord,
+                            direction: next_direction.clone(),
+                        });
                     }
+                    std::cmp::Ordering::Equal => {
+                        eprintln!("new cost is same as other cost");
 
-                    // nexts.push(Tentative {
-                    //     cost: Reverse(new_cost),
-                    //     coord: next_coord,
-                    //     direction,
-                    // });
+                        let mut new_paths = other.as_ref().map(|o| o.1.clone()).unwrap_or_default();
+
+                        new_paths
+                            .iter_mut()
+                            .for_each(|p| p.push((next_coord, next_direction.clone())));
+
+                        let paths = &mut others.get_mut(&(next_coord, next_direction)).unwrap().1;
+
+                        for new_path in new_paths {
+                            paths.push(new_path);
+                        }
+                    }
+                    std::cmp::Ordering::Greater => {
+                        eprintln!("{new_cost} is less efficient for reaching {coord:?}");
+                    }
                 }
-
-                // if coord == end {
-                //     costs.push(cost + added_cost);
-                // } else {
-                //     nexts.push_back((coord, dir, cost + added_cost));
-                // }
             }
         }
 
-        others.get(&end).unwrap().clone()
+        let allpaths = |cell: (usize, usize)| {
+            let mut paths = vec![];
+            let mut sum = u64::MAX;
+
+            if let Some(p) = others.get(&(cell, Direction::Up)) {
+                paths.extend(p.1.clone())
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Down)) {
+                sum = p.0.min(sum);
+                paths.extend(p.1.clone())
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Left)) {
+                sum = p.0.min(sum);
+                paths.extend(p.1.clone())
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Right)) {
+                sum = p.0.min(sum);
+                paths.extend(p.1.clone())
+            }
+
+            (sum, paths)
+        };
+
+        let min_paths = |cell: (usize, usize)| {
+            let mut paths = vec![];
+            let mut sum = u64::MAX;
+
+            if let Some(p) = others.get(&(cell, Direction::Up)) {
+                match p.0.cmp(&sum) {
+                    std::cmp::Ordering::Less => {
+                        sum = p.0;
+                        paths = p.1.clone();
+                    }
+                    std::cmp::Ordering::Equal => {
+                        sum += p.0;
+                        paths.extend(p.1.clone());
+                    }
+                    std::cmp::Ordering::Greater => {}
+                }
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Down)) {
+                match p.0.cmp(&sum) {
+                    std::cmp::Ordering::Less => {
+                        sum = p.0;
+                        paths = p.1.clone();
+                    }
+                    std::cmp::Ordering::Equal => {
+                        sum += p.0;
+                        paths.extend(p.1.clone());
+                    }
+                    std::cmp::Ordering::Greater => {}
+                }
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Left)) {
+                match p.0.cmp(&sum) {
+                    std::cmp::Ordering::Less => {
+                        sum = p.0;
+                        paths = p.1.clone();
+                    }
+                    std::cmp::Ordering::Equal => {
+                        sum += p.0;
+                        paths.extend(p.1.clone());
+                    }
+                    std::cmp::Ordering::Greater => {}
+                }
+            }
+
+            if let Some(p) = others.get(&(cell, Direction::Right)) {
+                match p.0.cmp(&sum) {
+                    std::cmp::Ordering::Less => {
+                        sum = p.0;
+                        paths = p.1.clone();
+                    }
+                    std::cmp::Ordering::Equal => {
+                        sum += p.0;
+                        paths.extend(p.1.clone());
+                    }
+                    std::cmp::Ordering::Greater => {}
+                }
+            }
+
+            (sum, paths)
+        };
+
+        // let cells_path = others.get(&(end, Direction::Up)).unwrap().clone();
+
+        // for cells in cells_path.1.iter() {
+        //     for cell in cells.iter() {
+        //         eprintln!("{cell:?} has {} paths", allpaths(cell.0).1.len());
+        //     }
+        // }
+
+        min_paths(end)
+
+        // let up = others.get(&(end, Direction::Up)).unwrap().clone();
+        // let down = others.get(&(end, Direction::Down)).unwrap().clone();
+        // let left = others.get(&(end, Direction::Left)).unwrap().clone();
+        // let right = others.get(&(end, Direction::Right)).unwrap().clone();
+
+        // others.get(&(end, Direction::Up)).unwrap().clone()
+    }
+
+    fn tile_count(&self) -> u64 {
+        let mut tiles = HashSet::new();
+
+        for path in self.pind().1 {
+            for tile in path {
+                tiles.insert(tile.0);
+            }
+        }
+
+        tiles.len() as u64
     }
 }
 
@@ -240,7 +356,11 @@ pub fn part1() {
     dbg!(maze.pind().0);
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let maze = Maze::from_str(INPUT);
+
+    dbg!(maze.tile_count());
+}
 
 #[cfg(test)]
 mod tests {
@@ -256,7 +376,9 @@ mod tests {
 ####",
         );
 
-        assert_eq!(maze.pind().0, 1002);
+        let results = maze.pind();
+        assert_eq!(results.0, 1002);
+        dbg!(results.1.len());
     }
 
     #[test]
@@ -270,7 +392,32 @@ mod tests {
 #####",
         );
 
-        assert_eq!(maze.pind().0, 1004);
+        let results = maze.pind();
+        assert_eq!(results.0, 1004);
+        dbg!(results.1.len());
+    }
+
+    #[test]
+    fn mini_twice() {
+        let maze = Maze::from_str(
+            "\
+#####
+#.#E#
+#.#.#
+#...#
+#.#.#
+#...#
+#S#.#
+#####",
+        );
+
+        let results = maze.pind();
+        assert_eq!(results.0, 3007);
+        dbg!(results.1.len());
+        for path in results.1.iter() {
+            eprintln!("{:?}", path);
+        }
+        // dbg!(&results.1[0]);
     }
 
     #[test]
@@ -294,7 +441,11 @@ mod tests {
 ###############",
         );
 
-        assert_eq!(maze.pind().0, 7036);
+        let results = maze.pind();
+        assert_eq!(results.0, 7036);
+        dbg!(results.1.len());
+        dbg!(maze.tile_count());
+        // dbg!(&results.1[0]);
     }
 
     #[test]
@@ -322,5 +473,6 @@ mod tests {
 
         dbg!(maze.pind().1.len());
         assert_eq!(maze.pind().0, 11048);
+        dbg!(maze.tile_count());
     }
 }
