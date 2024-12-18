@@ -191,7 +191,6 @@ impl Program {
 
         loop {
             if triptetmocoquecahedrons[i] > 7 {
-                eprintln!("index {i} chain overflowed; keep moving forwards");
                 triptetmocoquecahedrons[i] = 0;
                 i += 1;
                 triptetmocoquecahedrons[i] += 1;
@@ -199,6 +198,9 @@ impl Program {
                 continue;
             }
 
+            // We can shift right-to-left the currently resolved digits
+            // and they will add up to an exploratory register that we
+            // can use to see if our prefix will work to generate the next instruction
             let register = triptetmocoquecahedrons
                 .iter()
                 .rev()
@@ -211,35 +213,20 @@ impl Program {
 
             while self.tick(&mut output).is_some() {}
 
-            let all_lines_up = output.len() == self.instructions.len()
-                && output.iter().zip(self.instructions.iter()).all(|(o, i)| *o == i.0);
-
-            if all_lines_up {
-                return register;
-            }
-
             let suffix_lines_up = output.len() == self.instructions.len() - i
                 && output
                     .iter()
                     .zip(self.instructions.iter().skip(i))
                     .all(|(o, i)| *o == i.0);
 
-            if suffix_lines_up {
-                // eprintln!(
-                //     "suffix lines up for {i} with {:?}",
-                //     &triptetmocoquecahedrons
-                // );
-
-                assert_ne!(i, 0);
-                i -= 1;
-
-                continue;
+            if suffix_lines_up && i == 0 {
+                return register;
             }
 
-            triptetmocoquecahedrons[i] += 1;
-            if triptetmocoquecahedrons[i] > 7 {
-                triptetmocoquecahedrons[i] = 0;
-                i += 1;
+            if suffix_lines_up {
+                assert_ne!(i, 0);
+                i -= 1;
+            } else {
                 triptetmocoquecahedrons[i] += 1;
             }
         }
