@@ -1,3 +1,4 @@
+use cached::proc_macro::cached;
 use regex::Regex;
 
 const INPUT: &str = include_str!("../../../inputs/day19.txt");
@@ -24,6 +25,32 @@ impl Ojisan {
         let rex = Regex::new(&pat).unwrap();
         self.designs.iter().filter(|des| rex.is_match(des)).count()
     }
+
+    fn possibilities_count(&self) -> usize {
+        self.designs.iter().map(|des| self.count_possibilities(des)).sum()
+    }
+
+    fn count_possibilities(&self, design: &str) -> usize {
+        #[cached(key = "String", convert = " { precinct.to_string() }")]
+        fn fp_wins_again(patterns: &[String], precinct: &str) -> usize {
+            patterns
+                .iter()
+                .map(|pat| {
+                    if let Some(rest) = precinct.strip_prefix(pat) {
+                        if rest.is_empty() {
+                            1
+                        } else {
+                            fp_wins_again(patterns, rest)
+                        }
+                    } else {
+                        0
+                    }
+                })
+                .sum()
+        }
+
+        fp_wins_again(&self.patterns, design)
+    }
 }
 
 pub fn part1() {
@@ -32,7 +59,11 @@ pub fn part1() {
     dbg!(ojisan.possible_count());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let ojisan = Ojisan::from_str(INPUT);
+
+    dbg!(ojisan.possibilities_count());
+}
 
 #[cfg(test)]
 mod tests {
@@ -55,5 +86,6 @@ bbrgwb",
         );
 
         dbg!(ojisan.possible_count());
+        dbg!(ojisan.possibilities_count());
     }
 }
