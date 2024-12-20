@@ -1,5 +1,3 @@
-use std::{cmp::Reverse, collections::BinaryHeap};
-
 const INPUT: &str = include_str!("../../../inputs/day20.txt");
 
 type Coord = (usize, usize);
@@ -55,10 +53,6 @@ impl Code {
         self.tiles[y * self.width + x]
     }
 
-    fn index_mut(&mut self, (x, y): Coord) -> &mut Tile {
-        &mut self.tiles[y * self.width + x]
-    }
-
     fn adj(&self, (x, y): Coord) -> impl Iterator<Item = Coord> {
         let width = self.width as isize;
         let height = self.height as isize;
@@ -100,82 +94,119 @@ impl Code {
             .unwrap()
     }
 
-    // Pathfinding 2.0
-    fn dijkstra(&self, start: Coord) -> Vec<Coord> {
-        self.dijkstra_dirty(start, &mut Vec::new(), &mut Vec::new())
-    }
-
-    fn dijkstra_dirty(
-        &self,
-        start: Coord,
-        costs: &mut Vec<Option<i32>>,
-        parents: &mut Vec<Option<Coord>>,
-    ) -> Vec<Coord> {
-        costs.truncate(0);
-        parents.truncate(0);
-        costs.resize(self.width * self.height, None);
-        parents.resize(self.width * self.height, None);
-
+    fn path_lmao(&self) -> Vec<Coord> {
+        let start = self.start();
         let end = self.end();
 
-        let mut pqueue = BinaryHeap::new();
+        let mut coords = vec![];
+        let mut current = start;
+        let mut previous = start;
 
-        pqueue.push((Reverse(0), start));
-        costs[start.1 * self.width + start.0] = Some(0);
+        while current != end {
+            let next = self
+                .adj(current)
+                .find(|next| !matches!(self.index(*next), Tile::Wall) && *next != previous)
+                .unwrap();
 
-        while let Some((Reverse(cost), coord)) = pqueue.pop() {
-            if coord == end {
-                break;
-            }
+            coords.push(current);
+            previous = current;
+            current = next;
+        }
 
-            for next in self.adj(coord) {
-                if matches!(self.index(next), Tile::Wall) {
-                    continue;
-                }
+        coords.push(current);
 
-                let new_cost = cost + 1;
-                let existing_cost = costs[next.1 * self.width + next.0];
-                let is_cheaper = existing_cost.is_none() || existing_cost.unwrap() > new_cost;
+        for (index, tile) in self.tiles.iter().enumerate() {
+            if !matches!(tile, Tile::Wall) {
+                let coord = self.index_to_coord(index);
 
-                if is_cheaper {
-                    costs[next.1 * self.width + next.0] = Some(new_cost);
-                    parents[next.1 * self.width + next.0] = Some(coord);
-                    pqueue.push((Reverse(new_cost), next));
-                }
+                assert!(coords.contains(&coord));
             }
         }
 
-        let mut pathximus = vec![];
-        let mut cur = end;
-
-        while let Some(p) = parents[cur.1 * self.width + cur.0] {
-            pathximus.push(cur);
-            cur = p;
-        }
-
-        // Insert start at the end (to start) so we account it when hacking
-        pathximus.push(start);
-
-        pathximus.reverse();
-
-        pathximus
+        coords
     }
 
     fn hacks_for<'a>(&'a self, path: &'a [Coord]) -> impl Iterator<Item = usize> + 'a {
         path.iter().enumerate().flat_map(move |(index, coord)| {
-            let adjacents = self.adj(*coord).flat_map(|adj| self.adj(adj)).filter(move |skipped| {
-                !path[0..index].contains(skipped) && !matches!(self.index(*skipped), Tile::Wall)
-            });
+            let adjacents =
+                self.adj(*coord)
+                    .flat_map(|adj| self.adj(adj))
+                    .filter_map(move |skipped| {
+                        path.iter().enumerate().skip(index).find_map(|(cont, c)| {
+                            if skipped == *c {
+                                Some(index + 2 + (path.len() - cont))
+                            } else {
+                                None
+                            }
+                        })
+                    });
 
-            adjacents.map(move |adj| self.dijkstra(adj).len() + index + 2)
+            adjacents
         })
+    }
+
+    // It's not always DP
+    fn op_hacks(&self) -> u64 {
+        let path = self.path_lmao();
+
+        // Mapping beats a 9k cell scan
+        let mut indexes = vec![usize::MAX; self.width * self.height];
+        for (index, coord) in path.iter().enumerate() {
+            indexes[coord.1 * self.width + coord.0] = index;
+        }
+
+        let score_to_beat = path.len() - 100;
+
+        let mut hacks_beat = 0;
+
+        let mut sprawling = vec![];
+        let mut seen = vec![];
+
+        for (index, coord) in path.iter().enumerate() {
+            // dbg!(index);
+
+            sprawling.truncate(0);
+            seen.truncate(0);
+
+            sprawling.push((0, *coord));
+
+            for steps in 0..20 {
+                for i in 0..sprawling.len() {
+                    sprawling.extend(self.adj(sprawling[i].1).filter_map(|c| {
+                        if seen.contains(&c) {
+                            None
+                        } else {
+                            seen.push(c);
+                            Some((steps + 1, c))
+                        }
+                    }));
+                }
+            }
+
+            // Remember to skip the 1st which is where we started from
+            for (cheating_score, start) in sprawling.iter().skip(1) {
+                let end_index = indexes[start.1 * self.width + start.0];
+
+                // path.iter().enumerate().skip(index).find(|(_, c)| start == *c)
+                if end_index != usize::MAX {
+                    let score = index + cheating_score + (path.len() - end_index);
+
+                    if score <= score_to_beat {
+                        // dbg!(score);
+                        hacks_beat += 1;
+                    }
+                }
+            }
+        }
+
+        hacks_beat
     }
 }
 
 pub fn part1() {
     let code = Code::from_str(INPUT);
 
-    let path = code.dijkstra(code.start());
+    let path = code.path_lmao();
 
     dbg!(path.len());
 
@@ -188,7 +219,11 @@ pub fn part1() {
     dbg!(hack_count);
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let code = Code::from_str(INPUT);
+
+    dbg!(code.op_hacks());
+}
 
 #[cfg(test)]
 mod tests {
@@ -216,7 +251,7 @@ mod tests {
 ",
         );
 
-        let path = code.dijkstra(code.start());
+        let path = code.path_lmao();
 
         assert_eq!(path.len(), 85);
 
