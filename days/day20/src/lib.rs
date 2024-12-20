@@ -155,44 +155,33 @@ impl Code {
             indexes[coord.1 * self.width + coord.0] = index;
         }
 
+        // score is len - 1; to beat is at least 100 less than that
+        // even accounting for this +1 from including start pos, still need to use <=
         let score_to_beat = path.len() - 100;
 
         let mut hacks_beat = 0;
 
-        let mut sprawling = vec![];
-        let mut seen = vec![];
-
         for (index, coord) in path.iter().enumerate() {
             // dbg!(index);
 
-            sprawling.truncate(0);
-            seen.truncate(0);
+            let sprawling = path.iter().filter_map(|other| {
+                let man_dist = other.0.abs_diff(coord.0) + other.1.abs_diff(coord.1);
 
-            sprawling.push((0, *coord));
-
-            for steps in 0..20 {
-                for i in 0..sprawling.len() {
-                    sprawling.extend(self.adj(sprawling[i].1).filter_map(|c| {
-                        if seen.contains(&c) {
-                            None
-                        } else {
-                            seen.push(c);
-                            Some((steps + 1, c))
-                        }
-                    }));
+                if man_dist <= 20 {
+                    Some((man_dist, *other))
+                } else {
+                    None
                 }
-            }
+            });
 
             // Remember to skip the 1st which is where we started from
-            for (cheating_score, start) in sprawling.iter().skip(1) {
+            for (cheating_score, start) in sprawling.skip(1) {
                 let end_index = indexes[start.1 * self.width + start.0];
 
-                // path.iter().enumerate().skip(index).find(|(_, c)| start == *c)
                 if end_index != usize::MAX {
                     let score = index + cheating_score + (path.len() - end_index);
 
                     if score <= score_to_beat {
-                        // dbg!(score);
                         hacks_beat += 1;
                     }
                 }
