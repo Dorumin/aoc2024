@@ -164,7 +164,7 @@ impl Code {
         for (index, coord) in path.iter().enumerate() {
             // dbg!(index);
 
-            let sprawling = path.iter().filter_map(|other| {
+            let sprawling = path.iter().skip(index + 100).filter_map(|other| {
                 let man_dist = other.0.abs_diff(coord.0) + other.1.abs_diff(coord.1);
 
                 if man_dist <= 20 {
@@ -175,7 +175,7 @@ impl Code {
             });
 
             // Remember to skip the 1st which is where we started from
-            for (cheating_score, start) in sprawling.skip(1) {
+            for (cheating_score, start) in sprawling {
                 let end_index = indexes[start.1 * self.width + start.0];
 
                 if end_index != usize::MAX {
