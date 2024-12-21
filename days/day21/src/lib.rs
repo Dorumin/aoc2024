@@ -10,13 +10,7 @@ const INPUT: &str = include_str!("../../../inputs/day21.txt");
 type Coord = (usize, usize);
 
 struct Keypad {
-    ty: KeypadType,
     map: HashMap<Key, Coord>,
-}
-
-enum KeypadType {
-    Numeric,
-    Directional,
 }
 
 struct Keychain {
@@ -108,43 +102,36 @@ impl Key {
 }
 
 impl Keypad {
-    fn new(ty: KeypadType) -> Self {
+    fn numeric() -> Self {
         let mut map = HashMap::new();
 
-        match ty {
-            KeypadType::Numeric => {
-                map.insert(Key::Seven, (0, 0));
-                map.insert(Key::Eight, (1, 0));
-                map.insert(Key::Nine, (2, 0));
-                map.insert(Key::Four, (0, 1));
-                map.insert(Key::Five, (1, 1));
-                map.insert(Key::Six, (2, 1));
-                map.insert(Key::One, (0, 2));
-                map.insert(Key::Two, (1, 2));
-                map.insert(Key::Three, (2, 2));
-                map.insert(Key::Panic, (0, 3));
-                map.insert(Key::Zero, (1, 3));
-                map.insert(Key::Commit, (2, 3));
-            }
-            KeypadType::Directional => {
-                map.insert(Key::Panic, (0, 0));
-                map.insert(Key::Up, (1, 0));
-                map.insert(Key::Commit, (2, 0));
-                map.insert(Key::Left, (0, 1));
-                map.insert(Key::Down, (1, 1));
-                map.insert(Key::Right, (2, 1));
-            }
-        }
+        map.insert(Key::Seven, (0, 0));
+        map.insert(Key::Eight, (1, 0));
+        map.insert(Key::Nine, (2, 0));
+        map.insert(Key::Four, (0, 1));
+        map.insert(Key::Five, (1, 1));
+        map.insert(Key::Six, (2, 1));
+        map.insert(Key::One, (0, 2));
+        map.insert(Key::Two, (1, 2));
+        map.insert(Key::Three, (2, 2));
+        map.insert(Key::Panic, (0, 3));
+        map.insert(Key::Zero, (1, 3));
+        map.insert(Key::Commit, (2, 3));
 
-        Self { ty, map }
-    }
-
-    fn numeric() -> Self {
-        Self::new(KeypadType::Numeric)
+        Self { map }
     }
 
     fn directional() -> Self {
-        Self::new(KeypadType::Directional)
+        let mut map = HashMap::new();
+
+        map.insert(Key::Panic, (0, 0));
+        map.insert(Key::Up, (1, 0));
+        map.insert(Key::Commit, (2, 0));
+        map.insert(Key::Left, (0, 1));
+        map.insert(Key::Down, (1, 1));
+        map.insert(Key::Right, (2, 1));
+
+        Self { map }
     }
 
     fn find(&self, key: Key) -> Coord {
@@ -170,8 +157,9 @@ impl Keypad {
         };
 
         let mut moves = vec![hmove; x_diff + y_diff];
-        moves[x_diff..].fill(vmove);
         // moves.extend(std::iter::repeat(vmove).take(y_diff));
+        // no realloc
+        moves[x_diff..].fill(vmove);
 
         // permutations, flat map, range? whatever, itertools
         moves
@@ -207,10 +195,10 @@ impl Keychain {
         index: usize,
         keypad_arm: Key,
         to_key: Key,
-        cache: &mut HashMap<(usize, Key, Key), Inputs>,
-    ) -> Inputs {
+        cache: &mut HashMap<(usize, Key, Key), u64>,
+    ) -> u64 {
         if let Some(best) = cache.get(&(index, keypad_arm, to_key)) {
-            return best.clone();
+            return *best;
         }
 
         let keypad = &self.keypads[index];
@@ -219,35 +207,33 @@ impl Keychain {
         let to = keypad.find(to_key);
 
         if from == to {
-            return Inputs::from_str("A");
+            // Equivalent to [Key::Commit]
+            return 1;
         }
 
-        let mut best_path: Option<Inputs> = None;
+        let mut best_path = None;
 
         for path in keypad.paths_to(from, to) {
             // todo: opt alloc
             let mut path: Vec<_> = path.into_iter().map(|dir| dir.to_key()).collect();
             path.push(Key::Commit);
 
-            let path = if index == self.keypads.len() - 1 {
-                Inputs { keys: path }
+            let path_count = if index == self.keypads.len() - 1 {
+                path.len() as u64
             } else {
                 self.shortest_keypass(Inputs { keys: path }, index + 1, cache)
             };
 
-            if let Some(ref best) = best_path {
-                if best.keys.len() > path.keys.len() {
-                    best_path.replace(path);
+            if let Some(best) = best_path {
+                if best > path_count {
+                    best_path.replace(path_count);
                 }
             } else {
-                best_path.replace(path);
+                best_path.replace(path_count);
             }
         }
 
-        cache.insert(
-            (index, keypad_arm, to_key),
-            best_path.as_ref().unwrap().clone(),
-        );
+        cache.insert((index, keypad_arm, to_key), best_path.unwrap());
 
         best_path.unwrap()
     }
@@ -256,19 +242,19 @@ impl Keychain {
         &self,
         commands: Inputs,
         start: usize,
-        cache: &mut HashMap<(usize, Key, Key), Inputs>,
-    ) -> Inputs {
+        cache: &mut HashMap<(usize, Key, Key), u64>,
+    ) -> u64 {
         let mut keypad_arm = Key::Commit;
-        let mut final_keypresses = Inputs::from_str("");
+        let mut final_keypress_count = 0;
 
         for key in commands.keys {
-            let sequencing = self.shortest_translation(start, keypad_arm, key, cache);
+            let sequencing_count = self.shortest_translation(start, keypad_arm, key, cache);
 
-            final_keypresses.keys.extend(sequencing.keys);
+            final_keypress_count += sequencing_count;
             keypad_arm = key;
         }
 
-        final_keypresses
+        final_keypress_count
     }
 }
 
@@ -316,12 +302,10 @@ pub fn part1() {
     for code in codes {
         let inputs = Inputs::from_str(code);
 
-        let result = chain.shortest_keypass(inputs, 0, &mut cache);
+        let result_length = chain.shortest_keypass(inputs, 0, &mut cache);
 
-        dbg!(result.keys.len());
-
-        let nummy: usize = code.trim_end_matches(|c: char| c.is_alphabetic()).parse().unwrap();
-        let score = result.keys.len() * nummy;
+        let nummy: u64 = code.trim_end_matches(|c: char| c.is_alphabetic()).parse().unwrap();
+        let score = result_length * nummy;
 
         total += score;
     }
@@ -332,7 +316,7 @@ pub fn part1() {
 pub fn part2() {
     let mut keypads = vec![Keypad::numeric()];
 
-    keypads.extend(std::iter::repeat_with(Keypad::directional).take(21));
+    keypads.extend(std::iter::repeat_with(Keypad::directional).take(25));
 
     let chain = Keychain::new(keypads);
 
@@ -344,37 +328,13 @@ pub fn part2() {
     for code in codes {
         let inputs = Inputs::from_str(code);
 
-        let result = chain.shortest_keypass(inputs, 0, &mut cache);
+        let result_length = chain.shortest_keypass(inputs, 0, &mut cache);
 
-        dbg!(result.keys.len());
-
-        let nummy: usize = code.trim_end_matches(|c: char| c.is_alphabetic()).parse().unwrap();
-        let score = result.keys.len() * nummy;
+        let nummy: u64 = code.trim_end_matches(|c: char| c.is_alphabetic()).parse().unwrap();
+        let score = result_length * nummy;
 
         total += score;
     }
 
     dbg!(total);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn example_one() {
-        let mut depressurized_numpad = Keypad::numeric();
-        let mut irradiated_keypad = Keypad::directional();
-        let mut freezing_keypad = Keypad::directional();
-        let mut chronicled_keypad = Keypad::directional();
-
-        let mut commands: Vec<_> = "029A".chars().map(Key::from_char).collect();
-
-        dbg!(depressurized_numpad
-            .paths_to(
-                depressurized_numpad.find(Key::Commit),
-                depressurized_numpad.find(Key::Four)
-            )
-            .collect::<Vec<_>>());
-    }
 }
