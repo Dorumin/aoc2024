@@ -57,13 +57,15 @@ impl Code {
         let d = max_dist as isize;
         let w = self.width as isize;
         let h = self.height as isize;
+        let x = x as isize;
+        let y = y as isize;
 
         // We map our diamond indexes horizontally from negative to positive inc. range...
         (-d..=d).flat_map(move |dx| {
             // ... and we map our vertical diamond indexes, subtracting the absolute value
             // of our horizontal index (so we get a by-design manhattan limit)
             ((-d + dx.abs())..(d - dx.abs() + 1)).filter_map(move |dy| {
-                let next = ((x as isize) + dx, (y as isize) + dy);
+                let next = (x + dx, y + dy);
 
                 if next.0 < 0 || next.0 >= w || next.1 < 0 || next.1 >= h {
                     None
@@ -110,10 +112,8 @@ impl Code {
         while current != end {
             let next = self
                 .sprawling(current, 1)
-                .find(|(_, next)| {
-                    !matches!(self.index(*next), Tile::Wall)
-                        && *next != previous
-                        && *next != current
+                .find(|(score, next)| {
+                    *score != 0 && *next != previous && !matches!(self.index(*next), Tile::Wall)
                 })
                 .unwrap();
 
