@@ -91,25 +91,36 @@ impl MonkeyBusiness {
         const POSSIBLE_DELTA_VALUES: usize = 19;
 
         // Can't be const, curiously
+        // https://stackoverflow.com/a/72467535
         let linear_backing_size = POSSIBLE_DELTA_VALUES.pow(N as u32);
 
         let mut linear_backing = vec![0; linear_backing_size];
-        let mut witnessed_sequence_ids = vec![false; linear_backing_size];
-        let mut best_seq_so_far = [0; N];
-        let mut best_sales_so_far = 0;
+        let mut witnessed_sequence_ids = bitvec::bitvec![0; linear_backing_size];
 
-        for monki in self.monkeys.iter() {
+        // cloning is 2% faster
+        for mut monki in self.monkeys.iter().cloned() {
             witnessed_sequence_ids.fill(false);
 
-            let mut monki = *monki;
             let mut seq = [0; N];
+            let mut seq_id_parts = [0; N];
             let mut last_nana_price = (monki % 10) as i8;
 
             // Priming the sequence
             for _ in 0..N {
                 let nana_price = (monki % 10) as i8;
-                seq[0] = nana_price - last_nana_price;
-                seq.rotate_left(1);
+                let delta = nana_price - last_nana_price;
+                let delta_id = delta + 9;
+
+                // manual rotate_left 1 is much faster
+                for i in 0..(N - 1) {
+                    // shift all sequence parts left; for id parts, multiply
+                    // by possible delta values (up to N-1 times total)
+                    seq[i] = seq[i + 1];
+                    seq_id_parts[i] = seq_id_parts[i + 1] * POSSIBLE_DELTA_VALUES;
+                }
+
+                seq[N - 1] = delta;
+                seq_id_parts[N - 1] = delta_id as usize;
 
                 monki = monkey_tick(monki);
                 last_nana_price = nana_price;
@@ -117,25 +128,27 @@ impl MonkeyBusiness {
 
             for _ in 0..(times - N) {
                 let nana_price = (monki % 10) as i8;
-                seq[0] = nana_price - last_nana_price;
-                seq.rotate_left(1);
+                let delta = nana_price - last_nana_price;
+                let delta_id = delta + 9;
 
-                // We calculate every component of `seq` into the id at each step
-                // Might be able to optimize this to a sum like pux, but this fn
-                // also returns the specific best delta seq as well as best payout
-                let seq_id = seq.iter().enumerate().fold(0, |sum, (index, delta)| {
-                    sum + (*delta + 9) as usize * POSSIBLE_DELTA_VALUES.pow((N - index - 1) as u32)
-                });
+                for i in 0..(N - 1) {
+                    seq[i] = seq[i + 1];
+                    seq_id_parts[i] = seq_id_parts[i + 1] * POSSIBLE_DELTA_VALUES;
+                }
+
+                seq[N - 1] = delta;
+                seq_id_parts[N - 1] = delta_id as usize;
+
+                // seq_id was previously computed on the spot from `seq`:
+                // let seq_id = seq.iter().enumerate().fold(0, |sum, (index, delta)| {
+                //     sum + (*delta + 9) as usize * POSSIBLE_DELTA_VALUES.pow((N - index - 1) as u32)
+                // });
+                let seq_id: usize = seq_id_parts.iter().sum();
 
                 // branching on price != 0 is negligible
                 if !witnessed_sequence_ids[seq_id] {
-                    witnessed_sequence_ids[seq_id] = true;
+                    witnessed_sequence_ids.set(seq_id, true);
                     linear_backing[seq_id] += nana_price as u64;
-
-                    if linear_backing[seq_id] > best_sales_so_far {
-                        best_seq_so_far = seq;
-                        best_sales_so_far = linear_backing[seq_id]
-                    }
                 }
 
                 monki = monkey_tick(monki);
@@ -143,7 +156,24 @@ impl MonkeyBusiness {
             }
         }
 
-        (best_seq_so_far, best_sales_so_far)
+        // Scan array and recontruct seq_id for 10% improvement
+        let bestest = linear_backing
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, sales)| *sales)
+            .unwrap();
+        let mut bestest_seq = [0; N];
+        let mut seq_id = bestest.0;
+
+        for (index, delta) in bestest_seq.iter_mut().enumerate() {
+            let power = POSSIBLE_DELTA_VALUES.pow((N - index - 1) as u32);
+            let value = seq_id / power;
+            seq_id %= power;
+
+            *delta = value as i8 - 9;
+        }
+
+        (bestest_seq, *bestest.1)
     }
 }
 
