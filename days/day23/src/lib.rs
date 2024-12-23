@@ -22,44 +22,6 @@ impl<'a> LanParty<'a> {
         Self { map }
     }
 
-    fn sets(&self, lenis: usize) -> HashSet<Vec<&'a str>> {
-        let mut sets = HashSet::new();
-
-        fn explore_seq<'a>(
-            seq: Vec<&'a str>,
-            rest: &[&'a str],
-            map: &HashMap<&'a str, Vec<&'a str>>,
-            set: &mut HashSet<Vec<&'a str>>,
-            remaining: usize,
-        ) {
-            for next in rest {
-                if seq.contains(next) {
-                    continue;
-                }
-
-                let mut nseq = seq.clone();
-                nseq.push(next);
-
-                if remaining == 0 {
-                    nseq.sort();
-                    set.insert(nseq);
-                } else {
-                    let nrest = map.get(next).unwrap();
-
-                    explore_seq(nseq, nrest, map, set, remaining - 1);
-                }
-            }
-        }
-
-        for (&start, rest) in self.map.iter() {
-            let seq = vec![start];
-
-            explore_seq(seq, rest, &self.map, &mut sets, lenis - 2);
-        }
-
-        sets
-    }
-
     fn group_sets(&'a self, lenis: usize) -> HashSet<Vec<&'a str>> {
         let mut sets = HashSet::new();
 
@@ -102,6 +64,44 @@ impl<'a> LanParty<'a> {
 
         sets
     }
+
+    fn largest_group(&'a self) -> Vec<Vec<&'a str>> {
+        let mut current_generation: HashMap<Vec<&'a str>, HashSet<&'a str>> = HashMap::new();
+
+        for (start, rest) in self.map.iter() {
+            current_generation.insert(vec![start], rest.iter().cloned().collect());
+        }
+
+        loop {
+            let mut next_generation: HashMap<Vec<&'a str>, HashSet<&'a str>> = HashMap::new();
+
+            dbg!(current_generation.len());
+            for (prefix, possible_extensions) in current_generation.iter() {
+                // dbg!(prefix);
+                // dbg!(possible_extensions.len());
+
+                for next in possible_extensions {
+                    let next_connections = self.map.get(next).unwrap();
+
+                    if prefix.iter().all(|prev| next_connections.contains(prev)) {
+                        let mut next_seq = prefix.clone();
+                        next_seq.push(next);
+                        next_seq.sort();
+
+                        let next_extensions =
+                            next_connections.iter().filter(|ext| !prefix.contains(ext));
+                        next_generation.entry(next_seq).or_default().extend(next_extensions);
+                    }
+                }
+            }
+
+            if next_generation.is_empty() {
+                return current_generation.keys().cloned().collect();
+            }
+
+            current_generation = next_generation;
+        }
+    }
 }
 
 pub fn part1() {
@@ -115,7 +115,21 @@ pub fn part1() {
     dbg!(sets_of_three.len());
 }
 
-pub fn part2() {}
+pub fn part2() {
+    let party = LanParty::from_str(INPUT);
+
+    let lorgest = party.largest_group();
+    let password: String = lorgest.first().unwrap().join(",");
+
+    dbg!(password);
+
+    // lmao
+    // for i in 3.. {
+    //     let sets = party.group_sets(i);
+
+    //     dbg!(sets.len());
+    // }
+}
 
 #[cfg(test)]
 mod tests {
@@ -161,5 +175,6 @@ td-yn",
         // dbg!(party);
         dbg!(party.group_sets(3));
         dbg!(party.group_sets(3).len());
+        dbg!(party.largest_group());
     }
 }
