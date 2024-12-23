@@ -40,6 +40,7 @@ impl MonkeyBusiness {
     }
 
     // don't inline to aid in perf measurements
+    // this function is still useful for higher values of `N`
     #[inline(never)]
     #[allow(unused)]
     fn optimize_buy_sequence<const N: usize>(&self, times: usize) -> ([i8; N], u64) {
@@ -192,9 +193,11 @@ pub fn part2() {
 
     // eprintln!("optimal prices for optimal sequence {optimal_sequence:?} is {optimal_price}");
 
+    // for _ in 0..100 {
     let (optimal_sequence, optimal_price) = market.lemonize_buy_sequence::<4>(2000);
 
     eprintln!("lemonal prices for optimal sequence {optimal_sequence:?} is {optimal_price}");
+    // }
 }
 
 #[cfg(test)]
